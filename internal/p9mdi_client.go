@@ -26,7 +26,9 @@ const (
 	EventCodeSubscription uint = 0x66
 )
 
-func P9mdi_connect(server string, port uint16) unsafe.Pointer {
+type P9Connection = C.struct_P9MDI_CONNECTION
+
+func P9mdi_connect(server string, port uint16) *P9Connection {
 	var cn *C.struct_P9MDI_CONNECTION
 
 	c_server := C.CString(server)
@@ -40,18 +42,9 @@ func P9mdi_connect(server string, port uint16) unsafe.Pointer {
 		nil,
 		&cn)
 
-	return unsafe.Pointer(&cn)
+	return cn
 }
 
-func P9mdi_disconnect(cn unsafe.Pointer)  {
-
-	var c_connection *C.struct_P9MDI_CONNECTION
-
-	c_connection = (*C.struct_P9MDI_CONNECTION)(cn)
-
+func P9mdi_disconnect(c_connection *P9Connection)  {
 	C.p9mdi_disconnect(c_connection)
-
-	C.free(cn)
-
-	return
 }
