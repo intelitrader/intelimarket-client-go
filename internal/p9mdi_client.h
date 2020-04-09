@@ -50,13 +50,11 @@ enum SubscriptionType
 #define P9MDI_INFO_TYPE_STATS_SELLERS		8
 
 
-/*
 struct KEY_AND_VALUE
 {
 	const char* key;
 	const char* value;	
 };
-*/
 
 #define P9MDI_EVENT_SET					0x14
 #define P9MDI_EVENT_INSERT				0x15
