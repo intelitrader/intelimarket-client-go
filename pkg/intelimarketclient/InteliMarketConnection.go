@@ -43,7 +43,7 @@ func (self *InteliMarketConnection) Connect(server string, port uint16) (<-chan 
 
 	self.c_connection = intelimarketclient.P9mdi_connect(server, port, p9_OnPropertyCallback, self)
 
-	self.propertyChangeChannel = make(chan PropertyChangeInfo, 1024)
+	self.propertyChangeChannel = make(chan PropertyChangeInfo, 1024 * 1024)
 
 	self.hostname = server
 	self.port = port
@@ -67,5 +67,5 @@ func (self *InteliMarketConnection) Disconnect() {
 }
 
 func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string) {
-	intelimarketclient.P9mdi_subscribe_instrument_properties(self.c_connection, "petr4")
+	intelimarketclient.P9mdi_subscribe_instrument_properties(self.c_connection, symbol)
 }
