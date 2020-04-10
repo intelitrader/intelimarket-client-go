@@ -22,10 +22,10 @@ import
 	"log"
 )
 
-var g_logEnabled bool = false
+var g_traceLogEnabled bool = false
 
 func LogTrace(format string, args ...interface{}) {
-	if !g_logEnabled {
+	if !g_traceLogEnabled {
 		return
 	}
 
