@@ -11,15 +11,14 @@ package intelimarketclient
 void FieldChangeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, const char* key, char* value);
 void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, char* key, char* value);
 
-#cgo LDFLAGS: -L. -lp9mdi_client
-#cgo CFLAGS: -I../../inc
+#cgo LDFLAGS: -L./bin -lp9mdi_client
+#cgo pkg-config: glib-2.0
 */
 import "C"
 
-import
-(
-	"unsafe"
+import (
 	"log"
+	"unsafe"
 )
 
 var g_traceLogEnabled bool = false
@@ -46,12 +45,12 @@ const (
 )
 
 // cookie, exchange, symbol, key, value
-type PropertyCallback func(interface{}, string, string, string, string);
+type PropertyCallback func(interface{}, string, string, string, string)
 
 type P9GoConnection struct {
-	c_connection *C.struct_P9MDI_CONNECTION
-	connectionId uintptr
-	eventCookie interface{}
+	c_connection     *C.struct_P9MDI_CONNECTION
+	connectionId     uintptr
+	eventCookie      interface{}
 	propertyCallback PropertyCallback
 }
 
@@ -73,8 +72,8 @@ func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallba
 	defer C.free(unsafe.Pointer(c_hostname))
 
 	C.p9mdi_connect(
-		c_hostname, 
-		C.ushort(port), 
+		c_hostname,
+		C.ushort(port),
 		nil,
 		nil,
 		nil,
@@ -94,10 +93,10 @@ func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallba
 	return &p9_connection
 }
 
-func P9mdi_disconnect(p9_connection *P9GoConnection)  {
+func P9mdi_disconnect(p9_connection *P9GoConnection) {
 	LogTrace("P9mdi_disconnect: connectionId=%v", p9_connection.connectionId)
 	C.p9mdi_disconnect(p9_connection.c_connection)
-	
+
 	p9_connection.c_connection = nil
 }
 
@@ -119,7 +118,7 @@ func P9mdi_subscribe_instrument_properties(p9_connection *P9GoConnection, symbol
 		C.SnapshotPlusIncremental,
 		(C.FieldChangeCallback)(unsafe.Pointer(C.FieldChangeCallback_cgo)),
 		(unsafe.Pointer)(cookie))
-	
+
 	if result != 0 {
 		println("Error on set instrument properties callback")
 	}
@@ -130,12 +129,11 @@ func P9mdi_dispatch_pending_events(p9_connection *P9GoConnection) {
 	C.p9mdi_dispatch_pending_events(p9_connection.c_connection, 1)
 }
 
-
 //export fieldChangeCallback_Go
 func fieldChangeCallback_Go(
-	errorCode int32, 
+	errorCode int32,
 	handle unsafe.Pointer,
-	cookie unsafe.Pointer, 
+	cookie unsafe.Pointer,
 	eventCode uint32,
 	c_exchange *C.char,
 	c_symbol *C.char,
@@ -146,7 +144,7 @@ func fieldChangeCallback_Go(
 	symbol := C.GoString(c_symbol)
 	key := C.GoString(c_key)
 	value := C.GoString(c_value)
-	
+
 	connectionId := uintptr(cookie)
 	p9_connection := g_activeConnections[connectionId]
 
@@ -157,7 +155,6 @@ func fieldChangeCallback_Go(
 		symbol,
 		key,
 		value)
-
 
 	p9_connection.propertyCallback(p9_connection.eventCookie, exchange, symbol, key, value)
 }

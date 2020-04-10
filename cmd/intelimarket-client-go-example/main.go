@@ -52,15 +52,12 @@ func main() {
 		"FMXB34F", "DWDP34F", "TEXA34F", "CTGP34F", "ITLC34F", "METB34F", "SBUB34F", "WFCO34F", "BOEI34F", "PFIZ34F", "WALM34F", "IBMB34F", "AAPL34F", "EXXO34F",
 		"COPH34F", "TGTB34F", "MSFT34F", "DUKB34F", "ARMT34F", "LILY34F", "VISA34F", "AMGN34F"}
 
-		symbolCount := 100 //len(symbols)
+		symbolCount := 10 //len(symbols)
 
 		for i, symbol := range symbols[:symbolCount] {
 			log.Printf("Subscribing to %v (%v/%v)\n", symbol, i+1, symbolCount)
 			connection.SubscribeInstrumentProperties(symbol)
 		}
-
-		//connection.SubscribeGroupProperties("CS")
-		//connection.SubscribeGroupProperties("PS")
 
 	go PropertyToStdOut(propertyChangeChannel)
 
