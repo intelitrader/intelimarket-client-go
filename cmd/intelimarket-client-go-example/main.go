@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+
 	"bitbucket.org/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
 )
 
@@ -9,7 +10,7 @@ func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
 
 	log.Println("PropertyToStdOut, reading", channel)
 
-	for ;; {
+	for {
 		info := <-channel
 		log.Println("Property change:", info)
 	}
@@ -20,15 +21,17 @@ func main() {
 	hostname := "demo.intelitrader.com.br"
 
 	log.Println("Connecting to", hostname)
-	propertyChangeChannel, err := connection.Connect(hostname, 2605)
+	err := connection.Connect(hostname, 2605)
 	defer connection.Disconnect()
 
 	if err != nil {
-		log.Println("error: ", err);
+		log.Println("error: ", err)
 		return
 	}
 
 	log.Println("Connected!")
+
+	go PropertyToStdOut(connection.GetPropertyChangeChannel())
 
 	symbols := []string{
 		"RAIL3", "BTOW3", "AZUL4", "BRFS3", "VVAR3", "BRKM5", "VALE3", "ECOR3", "CYRE3", "ABEV3", "MRVE3", "PETR3", "EMBR3", "MULT3", "TIMP3", "LAME4", "BBSE3", "NATU3",
@@ -52,16 +55,14 @@ func main() {
 		"FMXB34F", "DWDP34F", "TEXA34F", "CTGP34F", "ITLC34F", "METB34F", "SBUB34F", "WFCO34F", "BOEI34F", "PFIZ34F", "WALM34F", "IBMB34F", "AAPL34F", "EXXO34F",
 		"COPH34F", "TGTB34F", "MSFT34F", "DUKB34F", "ARMT34F", "LILY34F", "VISA34F", "AMGN34F"}
 
-		symbolCount := 10 //len(symbols)
+	symbolCount := 10 //len(symbols)
 
-		for i, symbol := range symbols[:symbolCount] {
-			log.Printf("Subscribing to %v (%v/%v)\n", symbol, i+1, symbolCount)
-			connection.SubscribeInstrumentProperties(symbol)
-		}
+	for i, symbol := range symbols[:symbolCount] {
+		log.Printf("Subscribing to %v (%v/%v)\n", symbol, i+1, symbolCount)
+		connection.SubscribeInstrumentProperties(symbol)
+	}
 
-	go PropertyToStdOut(propertyChangeChannel)
-
-	for ;; {
+	for {
 		connection.DispatchPendingMessage()
-	}	
+	}
 }

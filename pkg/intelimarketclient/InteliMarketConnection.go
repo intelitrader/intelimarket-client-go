@@ -2,19 +2,19 @@ package intelimarketclient
 
 import (
 	"fmt"
-	"bitbucket.org/intelitrader/intelimarket-client-go/internal"
+
+	intelimarketclient "bitbucket.org/intelitrader/intelimarket-client-go/internal"
 )
 
 type PropertyChangeInfo struct {
-	exchange, symbol string
-	propertyKey, propertyValue string
+	Exchange, Symbol string
+	Key, Value       string
 }
 
-
 type InteliMarketConnection struct {
-	c_connection *intelimarketclient.P9GoConnection
-	hostname string
-	port uint16
+	c_connection          *intelimarketclient.P9GoConnection
+	hostname              string
+	port                  uint16
 	propertyChangeChannel chan PropertyChangeInfo
 }
 
@@ -38,17 +38,21 @@ func (self *InteliMarketConnection) String() string {
 	return fmt.Sprintf("<InteliMarketConnection %v:%v>", self.hostname, self.port)
 }
 
-func (self *InteliMarketConnection) Connect(server string, port uint16) (<-chan PropertyChangeInfo, error) {
+func (self *InteliMarketConnection) GetPropertyChangeChannel() <-chan PropertyChangeInfo {
+	return self.propertyChangeChannel
+}
+
+func (self *InteliMarketConnection) Connect(server string, port uint16) error {
 	intelimarketclient.LogTrace("Connecting to %v:%v", server, port)
 
 	self.c_connection = intelimarketclient.P9mdi_connect(server, port, p9_OnPropertyCallback, self)
 
-	self.propertyChangeChannel = make(chan PropertyChangeInfo, 1024 * 1024)
+	self.propertyChangeChannel = make(chan PropertyChangeInfo, 1024*1024)
 
 	self.hostname = server
 	self.port = port
 
-	return self.propertyChangeChannel, nil
+	return nil
 }
 
 func (self *InteliMarketConnection) DispatchPendingMessage() {

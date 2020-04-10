@@ -100,6 +100,25 @@ func P9mdi_disconnect(p9_connection *P9GoConnection) {
 	p9_connection.c_connection = nil
 }
 
+func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string) {
+	LogTrace("P9mdi_subscribe_group: connectionId=%v, groupName=%v", p9_connection.connectionId, groupName)
+
+	cGroupName := C.CString(groupName)
+	defer C.free(unsafe.Pointer(cGroupName))
+
+	C.p9mdi_set_subscribe_group_callback(
+		p9_connection.c_connection,
+		(C.FieldChangeCallback)(unsafe.Pointer(C.FieldChangeCallback_cgo)),
+		nil,
+		nil,
+		nil)
+
+	C.p9mdi_subscribe_group(
+		p9_connection.c_connection,
+		cGroupName,
+		0) // 0 = começa do item 0 de cada container, logo, SnapshotPlusIncremental
+}
+
 func P9mdi_subscribe_instrument_properties(p9_connection *P9GoConnection, symbol string) {
 	LogTrace("P9mdi_subscribe_instrument_properties: connectionId=%v, symbol=%v", p9_connection.connectionId, symbol)
 
