@@ -38,7 +38,11 @@ func (self *InteliMarketConnection) String() string {
 	return fmt.Sprintf("<InteliMarketConnection %v:%v>", self.hostname, self.port)
 }
 
-func (self *InteliMarketConnection) Connect(server string, port uint16) (<-chan PropertyChangeInfo, error) {
+func (self *InteliMarketConnection) GetPropertyChangeChannel() <-chan PropertyChangeInfo {
+	return self.propertyChangeChannel
+}
+
+func (self *InteliMarketConnection) Connect(server string, port uint16) error {
 	intelimarketclient.LogTrace("Connecting to %v:%v", server, port)
 
 	self.c_connection = intelimarketclient.P9mdi_connect(server, port, p9_OnPropertyCallback, self)
@@ -48,7 +52,7 @@ func (self *InteliMarketConnection) Connect(server string, port uint16) (<-chan 
 	self.hostname = server
 	self.port = port
 
-	return self.propertyChangeChannel, nil
+	return nil
 }
 
 func (self *InteliMarketConnection) DispatchPendingMessage() {
