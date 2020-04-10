@@ -1,7 +1,6 @@
 package intelimarketclient
 
 import (
-	"log"
 	"fmt"
 	"bitbucket.org/intelitrader/intelimarket-client-go/internal"
 )
@@ -26,7 +25,11 @@ func (self InteliMarketConnection) SubscribeGroup(group string) {
 func p9_OnPropertyCallback(eventCookie interface{}, exchange string, symbol string, key string, value string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	log.Println("p9_OnPropertyCallback", intelimarketConnection, symbol, key, value)
+	intelimarketclient.LogTrace("p9_OnPropertyCallback", intelimarketConnection, symbol, key, value)
+
+	if key == "" {
+		return
+	}
 
 	intelimarketConnection.propertyChangeChannel <- PropertyChangeInfo{exchange, symbol, key, value}
 }
@@ -36,7 +39,7 @@ func (self *InteliMarketConnection) String() string {
 }
 
 func (self *InteliMarketConnection) Connect(server string, port uint16) (<-chan PropertyChangeInfo, error) {
-	log.Printf("Connecting to %v:%v", server, port)
+	intelimarketclient.LogTrace("Connecting to %v:%v", server, port)
 
 	self.c_connection = intelimarketclient.P9mdi_connect(server, port, p9_OnPropertyCallback, self)
 

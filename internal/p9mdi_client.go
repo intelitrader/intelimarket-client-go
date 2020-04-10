@@ -22,6 +22,16 @@ import
 	"log"
 )
 
+var g_logEnabled bool = false
+
+func LogTrace(format string, args ...interface{}) {
+	if !g_logEnabled {
+		return
+	}
+
+	log.Printf(format, args...)
+}
+
 const (
 	EventCodeSet          uint = 0x14
 	EventCodeInsert       uint = 0x15
@@ -56,7 +66,7 @@ var g_lastConnectionId uintptr = 0
 var g_activeConnections = map[uintptr]P9GoConnection{}
 
 func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallback, eventCookie interface{}) *P9GoConnection {
-	log.Printf("P9mdi_connect: hostname=%v, port=%v", hostname, port)
+	LogTrace("P9mdi_connect: hostname=%v, port=%v", hostname, port)
 	var cn *C.struct_P9MDI_CONNECTION
 
 	c_hostname := C.CString(hostname)
@@ -79,20 +89,20 @@ func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallba
 
 	g_activeConnections[g_lastConnectionId] = p9_connection
 
-	log.Printf("P9mdi_connect: CONNECTED hostname=%v, port=%v, connectionId=%v", hostname, port, p9_connection.connectionId)
+	LogTrace("P9mdi_connect: CONNECTED hostname=%v, port=%v, connectionId=%v", hostname, port, p9_connection.connectionId)
 
 	return &p9_connection
 }
 
 func P9mdi_disconnect(p9_connection *P9GoConnection)  {
-	log.Printf("P9mdi_disconnect: connectionId=%v", p9_connection.connectionId)
+	LogTrace("P9mdi_disconnect: connectionId=%v", p9_connection.connectionId)
 	C.p9mdi_disconnect(p9_connection.c_connection)
 	
 	p9_connection.c_connection = nil
 }
 
 func P9mdi_subscribe_instrument_properties(p9_connection *P9GoConnection, symbol string) {
-	log.Printf("P9mdi_subscribe_instrument_properties: connectionId=%v, symbol=%v", p9_connection.connectionId, symbol)
+	LogTrace("P9mdi_subscribe_instrument_properties: connectionId=%v, symbol=%v", p9_connection.connectionId, symbol)
 
 	c_exchange := C.CString("bvmf")
 	defer C.free(unsafe.Pointer(c_exchange))
@@ -116,7 +126,7 @@ func P9mdi_subscribe_instrument_properties(p9_connection *P9GoConnection, symbol
 }
 
 func P9mdi_dispatch_pending_events(p9_connection *P9GoConnection) {
-	log.Printf("P9mdi_dispatch_pending_events: connectionId=%v", p9_connection.connectionId)
+	LogTrace("P9mdi_dispatch_pending_events: connectionId=%v", p9_connection.connectionId)
 	C.p9mdi_dispatch_pending_events(p9_connection.c_connection, 1)
 }
 
@@ -140,7 +150,7 @@ func fieldChangeCallback_Go(
 	connectionId := uintptr(cookie)
 	p9_connection := g_activeConnections[connectionId]
 
-	log.Printf("fieldChangeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, key=%v, value=%v",
+	LogTrace("fieldChangeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, key=%v, value=%v",
 		p9_connection.connectionId,
 		eventCode,
 		exchange,
