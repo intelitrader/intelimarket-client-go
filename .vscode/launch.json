@@ -24,7 +24,7 @@
             "program": "${workspaceFolder}../../../bin/intelimarket-client-go-example",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "Go install"
+            "preLaunchTask": "Go install (intelimarket-client-go-example)"
         }
     ]
 }
