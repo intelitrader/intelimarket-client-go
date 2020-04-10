@@ -2,22 +2,30 @@
     // See https://go.microsoft.com/fwlink/?LinkId=733558
     // for the documentation about the tasks.json format
     "version": "2.0.0",
-    "options": 
-    {
-        "env": {
-            "DYLD_LIBRARY_PATH": "${workspaceFolder}/internal:$DYLD_LIBRARY_PATH"
-        }
-    },
     "tasks": [
         {
             "label": "Go build",
             "type": "shell",
             "command": "go build ./...",
-            "problemMatcher":"$go",
+            "problemMatcher": "$go",
             "group": {
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "Go install",
+            "type": "shell",
+            "options": {
+                "cwd": "${workspaceFolder}/cmd/intelimarket-client-go-example"
+            },
+            "command": "go install .",
+            "problemMatcher": "$go",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
         }
+
     ]
 }
