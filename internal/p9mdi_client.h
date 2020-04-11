@@ -1,7 +1,15 @@
 #pragma once
 
-#ifndef _WIN32
-typedef int BOOL;
+#ifndef BOOL
+#define BOOL int
+#endif
+
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
 #endif
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
@@ -49,7 +57,6 @@ enum SubscriptionType
 #define P9MDI_INFO_TYPE_STATS_BUYERS		7
 #define P9MDI_INFO_TYPE_STATS_SELLERS		8
 
-
 struct KEY_AND_VALUE
 {
 	const char* key;
@@ -72,7 +79,7 @@ struct KEY_AND_VALUE
 
 #define P9MDI_DEBUG_FLAG_DUMP_MESSAGES_TO_STDOUT 0x01
 
-#define P9MDI_ERROR_NO_INTELIMARKET_ON_THIS_HUB 0xFF01
+#define P9MDI_ERROR_NO_INTELIMARKET_ON_THIS_TIO 0xFF01
 
 #define P9_FAILED(x) (x<0)
 
@@ -104,13 +111,6 @@ typedef void(*DisconnectionCallback)(struct P9MDI_CONNECTION*);
 
 const char* p9mdi_get_field_value(struct KEY_AND_VALUE* field_array, const char* key);
 const char* p9mdi_get_event_code_name(unsigned int event_code);
-
-int p9mdi_call_callbacks(FieldChangeCallback fieldChangeCallback, 
-		ListChangeCallback listChangeCallback, 
-		MapChangeCallback mapChangeCallback, 
-		NetChangeCallback netChangeCallback, 
-		GroupPropertyChangeCallback groupPropertyChangeCallback, 
-		DisconnectionCallback disconnectionCallback);
 
 int p9mdi_connect(const char* server, unsigned short port, const char* username, const char* password, const char* log_path, struct P9MDI_CONNECTION** connection);
 int	p9mdi_disconnect(struct P9MDI_CONNECTION* connection);
@@ -172,15 +172,15 @@ int p9mdi_query_instrument_properties(
 	const char** fields,
 	unsigned int fieldCount,
 	MapChangeCallback map_change_callback,
-	void* cookie
-	);
+	void* cookie);
 
 int p9mdi_set_subscribe_group_callback(
 	struct P9MDI_CONNECTION* connection, 
 	FieldChangeCallback properties_callback,
 	ListChangeCallback book_buy_callback,
 	ListChangeCallback book_sell_callback,
-	ListChangeCallback trades_callback);
+	ListChangeCallback trades_callback,
+	void* cookie);
 
 int p9mdi_subscribe_group(
 	struct P9MDI_CONNECTION* connection, 
@@ -197,7 +197,7 @@ void p9mdi_log(const char* what);
 
 void p9mdi_enable_message_dump_to_log(BOOL yes_or_no);
 
-int p9mdi_print_version();
+int p9mdi_test();
 
 #ifdef __cplusplus
 } //extern "C"

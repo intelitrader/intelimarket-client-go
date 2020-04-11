@@ -14,12 +14,12 @@
             }
         },
         {
-            "label": "Go install",
+            "label": "Go install (intelimarket-client-go-example)",
             "type": "shell",
             "options": {
                 "cwd": "${workspaceFolder}/cmd/intelimarket-client-go-example"
             },
-            "command": "go install .",
+            "command": "go install -gcflags \"-N -l\" .",
             "problemMatcher": "$go",
             "group": {
                 "kind": "build",

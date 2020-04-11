@@ -2,6 +2,7 @@ package intelimarketclient
 
 import (
 	"fmt"
+	"strings"
 
 	intelimarketclient "bitbucket.org/intelitrader/intelimarket-client-go/internal"
 )
@@ -16,10 +17,6 @@ type InteliMarketConnection struct {
 	hostname              string
 	port                  uint16
 	propertyChangeChannel chan PropertyChangeInfo
-}
-
-func (self InteliMarketConnection) SubscribeGroup(group string) {
-
 }
 
 func p9_OnPropertyCallback(eventCookie interface{}, exchange string, symbol string, key string, value string) {
@@ -72,4 +69,13 @@ func (self *InteliMarketConnection) Disconnect() {
 
 func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string) {
 	intelimarketclient.P9mdi_subscribe_instrument_properties(self.c_connection, symbol)
+}
+
+func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
+	//
+	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
+	// (tudo que começa com __meta__/groups dentro do tio)
+	//
+	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/properties", strings.ToLower(groupName))
+	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName)
 }

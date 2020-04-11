@@ -31,9 +31,8 @@ func main() {
 
 	log.Println("Connected!")
 
-	go PropertyToStdOut(connection.GetPropertyChangeChannel())
-
-	symbols := []string{
+	instruments := []string{
+		"WINM19",
 		"RAIL3", "BTOW3", "AZUL4", "BRFS3", "VVAR3", "BRKM5", "VALE3", "ECOR3", "CYRE3", "ABEV3", "MRVE3", "PETR3", "EMBR3", "MULT3", "TIMP3", "LAME4", "BBSE3", "NATU3",
 		"ITSA4", "GGBR4", "FLRY3", "GOAU4", "BBAS3", "IRBR3", "WEGE3", "B3SA3", "RADL3", "PCAR4", "CIEL3", "KROT3", "SANB11", "HYPE3", "MGLU3", "ENBR3", "UGPA3", "SUZB3",
 		"IGTA3", "SMLS3", "USIM5", "BRDT3", "PETR4", "ESTC3", "SBSP3", "ELET3", "ELET6", "QUAL3", "EQTL3", "BRAP4", "JBSS3", "VIVT4", "ITUB4", "LREN3", "BRML3", "MRFG3",
@@ -55,10 +54,22 @@ func main() {
 		"FMXB34F", "DWDP34F", "TEXA34F", "CTGP34F", "ITLC34F", "METB34F", "SBUB34F", "WFCO34F", "BOEI34F", "PFIZ34F", "WALM34F", "IBMB34F", "AAPL34F", "EXXO34F",
 		"COPH34F", "TGTB34F", "MSFT34F", "DUKB34F", "ARMT34F", "LILY34F", "VISA34F", "AMGN34F"}
 
-	symbolCount := 10 //len(symbols)
+	groups := []string{"CS", "PS", "FUT"}
 
-	for i, symbol := range symbols[:symbolCount] {
-		log.Printf("Subscribing to %v (%v/%v)\n", symbol, i+1, symbolCount)
+	groupCount := len(groups)
+	instrumentCount := 0
+
+	//go PropertyToStdOut(connection.GetPropertyChangeChannel())
+	statsPrinter := NewInstrumentsEventsStatsPrinter(10)
+	statsPrinter.LaunchAsyncStatisticsPrinter(connection.GetPropertyChangeChannel())
+
+	for i, groupName := range groups[:groupCount] {
+		log.Printf("Subscribing to group %v (%v/%v)\n", groupName, i+1, groupCount)
+		connection.SubscribeGroupProperties(groupName)
+	}
+
+	for i, symbol := range instruments[:instrumentCount] {
+		log.Printf("Subscribing to %v (%v/%v)\n", symbol, i+1, instrumentCount)
 		connection.SubscribeInstrumentProperties(symbol)
 	}
 

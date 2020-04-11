@@ -106,12 +106,15 @@ func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string) {
 	cGroupName := C.CString(groupName)
 	defer C.free(unsafe.Pointer(cGroupName))
 
+	var cookie uintptr = uintptr(p9_connection.connectionId)
+
 	C.p9mdi_set_subscribe_group_callback(
 		p9_connection.c_connection,
 		(C.FieldChangeCallback)(unsafe.Pointer(C.FieldChangeCallback_cgo)),
 		nil,
 		nil,
-		nil)
+		nil,
+		(unsafe.Pointer)(cookie))
 
 	C.p9mdi_subscribe_group(
 		p9_connection.c_connection,
