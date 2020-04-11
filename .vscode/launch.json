@@ -15,7 +15,8 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/cmd/intelimarket-client-go-example"
+            "program": "${workspaceFolder}/cmd/intelimarket-client-go-example",
+            "preLaunchTask": "Go build"
         },
         {
             "type": "lldb",
