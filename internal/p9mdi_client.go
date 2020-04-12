@@ -31,21 +31,8 @@ func LogTrace(format string, args ...interface{}) {
 	log.Printf(format, args...)
 }
 
-const (
-	EventCodeSet          uint = 0x14
-	EventCodeInsert       uint = 0x15
-	EventCodeDelete       uint = 0x16
-	EventCodePushBack     uint = 0x17
-	EventCodePushFront    uint = 0x18
-	EventCodePopBack      uint = 0x19
-	EventCodePopFront     uint = 0x1A
-	EventCodeClear        uint = 0x1B
-	EventCodeSnapshotEnd  uint = 0x23
-	EventCodeSubscription uint = 0x66
-)
-
-// cookie, exchange, symbol, key, value
-type PropertyCallback func(interface{}, string, string, string, string)
+// cookie, eventCode, exchange, symbol, key, value
+type PropertyCallback func(interface{}, uint32, string, string, string, string)
 
 type P9GoConnection struct {
 	c_connection     *C.struct_P9MDI_CONNECTION
@@ -178,5 +165,5 @@ func fieldChangeCallback_Go(
 		key,
 		value)
 
-	p9_connection.propertyCallback(p9_connection.eventCookie, exchange, symbol, key, value)
+	p9_connection.propertyCallback(p9_connection.eventCookie, eventCode, exchange, symbol, key, value)
 }

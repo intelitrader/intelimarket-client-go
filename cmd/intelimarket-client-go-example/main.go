@@ -56,12 +56,12 @@ func main() {
 
 	groups := []string{"CS", "PS", "FUT"}
 
-	groupCount := len(groups)
+	groupCount := 1
 	instrumentCount := 0
 
-	//go PropertyToStdOut(connection.GetPropertyChangeChannel())
-	statsPrinter := NewInstrumentsEventsStatsPrinter(10)
-	statsPrinter.LaunchAsyncStatisticsPrinter(connection.GetPropertyChangeChannel())
+	go PropertyToStdOut(connection.GetPropertyChangeChannel())
+	//statsPrinter := NewInstrumentsEventsStatsPrinter(10)
+	//statsPrinter.LaunchAsyncStatisticsPrinter(connection.GetPropertyChangeChannel())
 
 	for i, groupName := range groups[:groupCount] {
 		log.Printf("Subscribing to group %v (%v/%v)\n", groupName, i+1, groupCount)
