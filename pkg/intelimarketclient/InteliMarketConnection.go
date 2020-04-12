@@ -7,9 +7,66 @@ import (
 	intelimarketclient "bitbucket.org/intelitrader/intelimarket-client-go/internal"
 )
 
+type EventCode = uint
+
+const (
+	EventCodeSet          uint = 0x14
+	EventCodeInsert       uint = 0x15
+	EventCodeDelete       uint = 0x16
+	EventCodePushBack     uint = 0x17
+	EventCodePushFront    uint = 0x18
+	EventCodePopBack      uint = 0x19
+	EventCodePopFront     uint = 0x1A
+	EventCodeClear        uint = 0x1B
+	EventCodeSnapshotEnd  uint = 0x23
+	EventCodeSubscription uint = 0x66
+)
+
 type PropertyChangeInfo struct {
 	Exchange, Symbol string
+	EventCode        EventCode
 	Key, Value       string
+}
+
+func eventCodeToString(eventCode EventCode) string {
+	switch eventCode {
+	case EventCodeSet:
+		return "Set"
+	case EventCodeInsert:
+		return "Insert"
+	case EventCodeDelete:
+		return "Delete"
+	case EventCodePushBack:
+		return "PushBack"
+	case EventCodePushFront:
+		return "PushFront"
+	case EventCodePopBack:
+		return "PopBack"
+	case EventCodePopFront:
+		return "PopFront"
+	case EventCodeClear:
+		return "Clear"
+	case EventCodeSnapshotEnd:
+		return "SnapshotEnd"
+	case EventCodeSubscription:
+		return "Subscription"
+	default:
+		return "WHAT?"
+	}
+}
+
+func (self PropertyChangeInfo) String() string {
+	ret := fmt.Sprintf("%v.%v - %v",
+		self.Exchange,
+		self.Symbol,
+		eventCodeToString(self.EventCode))
+
+	if self.Key != "" {
+		ret += fmt.Sprintf(" - %v=%v",
+			self.Key,
+			self.Value)
+	}
+	return ret
 }
 
 type InteliMarketConnection struct {
@@ -19,16 +76,12 @@ type InteliMarketConnection struct {
 	propertyChangeChannel chan PropertyChangeInfo
 }
 
-func p9_OnPropertyCallback(eventCookie interface{}, exchange string, symbol string, key string, value string) {
+func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, key string, value string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
 	intelimarketclient.LogTrace("p9_OnPropertyCallback", intelimarketConnection, symbol, key, value)
 
-	if key == "" {
-		return
-	}
-
-	intelimarketConnection.propertyChangeChannel <- PropertyChangeInfo{exchange, symbol, key, value}
+	intelimarketConnection.propertyChangeChannel <- PropertyChangeInfo{exchange, symbol, EventCode(eventCode), key, value}
 }
 
 func (self *InteliMarketConnection) String() string {
