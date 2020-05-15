@@ -17,6 +17,7 @@ void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned
 import "C"
 
 import (
+	"errors"
 	"log"
 	"unsafe"
 )
@@ -51,20 +52,24 @@ type P9GoConnection struct {
 var g_lastConnectionId uintptr = 0
 var g_activeConnections = map[uintptr]P9GoConnection{}
 
-func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallback, eventCookie interface{}) *P9GoConnection {
+func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallback, eventCookie interface{}) (*P9GoConnection, error) {
 	LogTrace("P9mdi_connect: hostname=%v, port=%v", hostname, port)
 	var cn *C.struct_P9MDI_CONNECTION
 
 	c_hostname := C.CString(hostname)
 	defer C.free(unsafe.Pointer(c_hostname))
 
-	C.p9mdi_connect(
+	err := C.p9mdi_connect(
 		c_hostname,
 		C.ushort(port),
 		nil,
 		nil,
 		nil,
 		&cn)
+
+	if err != 0 {
+		return nil, errors.New("connection error")
+	}
 
 	g_lastConnectionId++
 	p9_connection := P9GoConnection{}
@@ -77,7 +82,7 @@ func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallba
 
 	LogTrace("P9mdi_connect: CONNECTED hostname=%v, port=%v, connectionId=%v", hostname, port, p9_connection.connectionId)
 
-	return &p9_connection
+	return &p9_connection, nil
 }
 
 func P9mdi_disconnect(p9_connection *P9GoConnection) {

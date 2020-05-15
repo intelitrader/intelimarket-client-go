@@ -95,7 +95,13 @@ func (self *InteliMarketConnection) GetPropertyChangeChannel() <-chan PropertyCh
 func (self *InteliMarketConnection) Connect(server string, port uint16) error {
 	intelimarketclient.LogTrace("Connecting to %v:%v", server, port)
 
-	self.c_connection = intelimarketclient.P9mdi_connect(server, port, p9_OnPropertyCallback, self)
+	var err error
+
+	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, p9_OnPropertyCallback, self)
+
+	if err != nil {
+		return err
+	}
 
 	self.propertyChangeChannel = make(chan PropertyChangeInfo, 1024*1024)
 
