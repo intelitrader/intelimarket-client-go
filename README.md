@@ -10,7 +10,7 @@ Essa biblioteca é um binding que usa a lib da Intelitrader feita em C (p9mdi_cl
 - Configure a pasta de binários como fallback para carga de DLL/SO/DYLIB (essa lib é um wrapper de uma lib feita em C)
     - macOS: `export DYLD_FALLBACK_LIBRARY_PATH=~/go/src/intelimarket-client-go/internal/bin/`
     - Windows: TODO
-    - Linux: `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/go/intelimarket-client-go/internal/bin`
+    - Linux: `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/go/src/intelimarket-client-go/internal/bin`
 - Entrar na pasta do repositório e rodar `go install ./...` para compilar tudo e copiar para pasta `bin` do Go
 - Pronto. Para testar se está tudo OK é só executar `~/go/bin/intelimarket-client-go-example`
 
