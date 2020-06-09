@@ -77,6 +77,7 @@ func main() {
 	for i, groupName := range groups[:groupCount] {
 		log.Printf("Subscribing to group %v (%v/%v)\n", groupName, i+1, groupCount)
 		connection.SubscribeGroupProperties(groupName)
+		connection.SubscribeGroupTrades(groupName)
 	}
 
 	for i, symbol := range instruments[:instrumentCount] {
