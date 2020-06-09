@@ -16,6 +16,16 @@ func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
 	}
 }
 
+func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
+
+	log.Println("TradeToStdOut, reading", channel)
+
+	for {
+		info := <-channel
+		log.Println("Trade change:", info)
+	}
+}
+
 func main() {
 	connection := intelimarketclient.InteliMarketConnection{}
 	hostname := "demo.intelitrader.com.br"
@@ -60,6 +70,7 @@ func main() {
 	instrumentCount := 0
 
 	go PropertyToStdOut(connection.GetPropertyChangeChannel())
+	go TradeToStdOut(connection.GetTradeChangeChannel())
 	//statsPrinter := NewInstrumentsEventsStatsPrinter(10)
 	//statsPrinter.LaunchAsyncStatisticsPrinter(connection.GetPropertyChangeChannel())
 

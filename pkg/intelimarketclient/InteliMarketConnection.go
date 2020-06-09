@@ -28,6 +28,13 @@ type PropertyChangeInfo struct {
 	Key, Value       string
 }
 
+type TradeChangeInfo struct {
+	Exchange, Symbol string
+	EventCode        EventCode
+    Position         uint32
+	Key, Value       string
+}
+
 func eventCodeToString(eventCode EventCode) string {
 	switch eventCode {
 	case EventCodeSet:
@@ -69,11 +76,27 @@ func (self PropertyChangeInfo) String() string {
 	return ret
 }
 
+func (self TradeChangeInfo) String() string {
+	ret := fmt.Sprintf("%v.%v - %v.%v",
+		self.Exchange,
+		self.Symbol,
+		eventCodeToString(self.EventCode),
+		self.Position)
+
+	if self.Key != "" {
+		ret += fmt.Sprintf(" - %v=%v",
+			self.Key,
+			self.Value)
+	}
+	return ret
+}
+
 type InteliMarketConnection struct {
 	c_connection          *intelimarketclient.P9GoConnection
 	hostname              string
 	port                  uint16
 	propertyChangeChannel chan PropertyChangeInfo
+	tradeChangeChannel    chan TradeChangeInfo
 }
 
 func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, key string, value string) {
@@ -84,6 +107,14 @@ func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange s
 	intelimarketConnection.propertyChangeChannel <- PropertyChangeInfo{exchange, symbol, EventCode(eventCode), key, value}
 }
 
+func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, key string, value string) {
+	intelimarketConnection := eventCookie.(*InteliMarketConnection)
+
+	intelimarketclient.LogTrace("p9_OnTradeCallback", intelimarketConnection, symbol, position, key, value)
+
+	intelimarketConnection.tradeChangeChannel <- TradeChangeInfo{exchange, symbol, EventCode(eventCode), position, key, value}
+}
+
 func (self *InteliMarketConnection) String() string {
 	return fmt.Sprintf("<InteliMarketConnection %v:%v>", self.hostname, self.port)
 }
@@ -92,18 +123,23 @@ func (self *InteliMarketConnection) GetPropertyChangeChannel() <-chan PropertyCh
 	return self.propertyChangeChannel
 }
 
+func (self *InteliMarketConnection) GetTradeChangeChannel() <-chan TradeChangeInfo {
+	return self.tradeChangeChannel
+}
+
 func (self *InteliMarketConnection) Connect(server string, port uint16) error {
 	intelimarketclient.LogTrace("Connecting to %v:%v", server, port)
 
 	var err error
 
-	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, p9_OnPropertyCallback, self)
+	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, p9_OnPropertyCallback, p9_OnTradeCallback, self)
 
 	if err != nil {
 		return err
 	}
 
 	self.propertyChangeChannel = make(chan PropertyChangeInfo, 1024*1024)
+	self.tradeChangeChannel = make(chan TradeChangeInfo, 1024*1024)
 
 	self.hostname = server
 	self.port = port
@@ -121,9 +157,11 @@ func (self *InteliMarketConnection) Disconnect() {
 	}
 	intelimarketclient.P9mdi_disconnect(self.c_connection)
 	close(self.propertyChangeChannel)
+	close(self.tradeChangeChannel)
 
 	self.c_connection = nil
 	self.propertyChangeChannel = nil
+	self.tradeChangeChannel = nil
 }
 
 func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string) {

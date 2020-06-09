@@ -9,7 +9,10 @@ package intelimarketclient
 //
 
 void FieldChangeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, const char* key, char* value);
+void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position, const char* key, char* value);
+
 void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, char* key, char* value);
+void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, char* key, char* value);
 
 #cgo LDFLAGS: -L./bin -lp9mdi_client
 #cgo pkg-config: glib-2.0
@@ -35,11 +38,15 @@ func LogTrace(format string, args ...interface{}) {
 // cookie, eventCode, exchange, symbol, key, value
 type PropertyCallback func(interface{}, uint32, string, string, string, string)
 
+// cookie, eventCode, exchange, symbol, position, key, value
+type TradeCallback func(interface{}, uint32, string, string, uint32, string, string)
+
 type P9GoConnection struct {
 	c_connection     *C.struct_P9MDI_CONNECTION
 	connectionId     uintptr
 	eventCookie      interface{}
 	propertyCallback PropertyCallback
+	tradeCallback    TradeCallback
 }
 
 //
@@ -52,7 +59,7 @@ type P9GoConnection struct {
 var g_lastConnectionId uintptr = 0
 var g_activeConnections = map[uintptr]P9GoConnection{}
 
-func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallback, eventCookie interface{}) (*P9GoConnection, error) {
+func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallback, tradeCallback TradeCallback, eventCookie interface{}) (*P9GoConnection, error) {
 	LogTrace("P9mdi_connect: hostname=%v, port=%v", hostname, port)
 	var cn *C.struct_P9MDI_CONNECTION
 
@@ -77,6 +84,7 @@ func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallba
 	p9_connection.connectionId = g_lastConnectionId
 	p9_connection.eventCookie = eventCookie
 	p9_connection.propertyCallback = propertyCallback
+	p9_connection.tradeCallback = tradeCallback
 
 	g_activeConnections[g_lastConnectionId] = p9_connection
 
@@ -105,7 +113,7 @@ func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string) {
 		(C.FieldChangeCallback)(unsafe.Pointer(C.FieldChangeCallback_cgo)),
 		nil,
 		nil,
-		nil,
+		(C.FieldChangeCallback)(unsafe.Pointer(C.TradeCallback_cgo)),
 		(unsafe.Pointer)(cookie))
 
 	C.p9mdi_subscribe_group(
@@ -171,4 +179,37 @@ func fieldChangeCallback_Go(
 		value)
 
 	p9_connection.propertyCallback(p9_connection.eventCookie, eventCode, exchange, symbol, key, value)
+}
+
+
+//export tradeCallback_Go
+func tradeCallback_Go(
+	errorCode int32,
+	handle unsafe.Pointer,
+	cookie unsafe.Pointer,
+	eventCode uint32,
+	c_exchange *C.char,
+	c_symbol *C.char,
+    position uint32,
+	c_key *C.char,
+	c_value *C.char) {
+
+	exchange := C.GoString(c_exchange)
+	symbol := C.GoString(c_symbol)
+	key := C.GoString(c_key)
+	value := C.GoString(c_value)
+
+	connectionId := uintptr(cookie)
+	p9_connection := g_activeConnections[connectionId]
+
+	LogTrace("tradeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, key=%v, value=%v",
+		p9_connection.connectionId,
+		eventCode,
+		exchange,
+        position,
+		symbol,
+		key,
+		value)
+
+	p9_connection.tradeCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, key, value)
 }
