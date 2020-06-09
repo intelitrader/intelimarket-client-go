@@ -9,10 +9,10 @@ package intelimarketclient
 //
 
 void FieldChangeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, const char* key, char* value);
-void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position, const char* key, char* value);
+void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position);
 
 void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, char* key, char* value);
-void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, char* key, char* value);
+void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
 
 #cgo LDFLAGS: -L./bin -lp9mdi_client
 #cgo pkg-config: glib-2.0
@@ -113,7 +113,7 @@ func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string) {
 		(C.FieldChangeCallback)(unsafe.Pointer(C.FieldChangeCallback_cgo)),
 		nil,
 		nil,
-		(C.FieldChangeCallback)(unsafe.Pointer(C.TradeCallback_cgo)),
+		(C.ListChangeCallback)(unsafe.Pointer(C.TradeCallback_cgo)),
 		(unsafe.Pointer)(cookie))
 
 	C.p9mdi_subscribe_group(
@@ -184,20 +184,23 @@ func fieldChangeCallback_Go(
 
 //export tradeCallback_Go
 func tradeCallback_Go(
-	errorCode int32,
-	handle unsafe.Pointer,
-	cookie unsafe.Pointer,
-	eventCode uint32,
-	c_exchange *C.char,
-	c_symbol *C.char,
+    errorCode int32, 
+    handle unsafe.Pointer, 
+    cookie unsafe.Pointer, 
+    eventCode uint32, 
+    c_exchange *C.char,
+    c_symbol *C.char,
     position uint32,
-	c_key *C.char,
-	c_value *C.char) {
+    c_fields *C.struct_KEY_AND_VALUE) {
 
 	exchange := C.GoString(c_exchange)
 	symbol := C.GoString(c_symbol)
-	key := C.GoString(c_key)
-	value := C.GoString(c_value)
+	key := "empty"
+	value := "empty"
+	if c_fields != nil {
+		key = C.GoString(c_fields.key)
+		value = C.GoString(c_fields.value)
+	}
 
 	connectionId := uintptr(cookie)
 	p9_connection := g_activeConnections[connectionId]

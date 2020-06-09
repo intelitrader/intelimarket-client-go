@@ -64,12 +64,12 @@ func main() {
 		"FMXB34F", "DWDP34F", "TEXA34F", "CTGP34F", "ITLC34F", "METB34F", "SBUB34F", "WFCO34F", "BOEI34F", "PFIZ34F", "WALM34F", "IBMB34F", "AAPL34F", "EXXO34F",
 		"COPH34F", "TGTB34F", "MSFT34F", "DUKB34F", "ARMT34F", "LILY34F", "VISA34F", "AMGN34F"}
 
-	groups := []string{"CS", "PS", "FUT"}
+	groups := []string{"ALL", "CS", "PS", "FUT"}
 
 	groupCount := 1
 	instrumentCount := 0
 
-	go PropertyToStdOut(connection.GetPropertyChangeChannel())
+	//go PropertyToStdOut(connection.GetPropertyChangeChannel())
 	go TradeToStdOut(connection.GetTradeChangeChannel())
 	//statsPrinter := NewInstrumentsEventsStatsPrinter(10)
 	//statsPrinter.LaunchAsyncStatisticsPrinter(connection.GetPropertyChangeChannel())

@@ -16,7 +16,7 @@ package intelimarketclient
 // Forward declaration das funções implementadas em Go
 //
 void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, char* key, char* value);
-void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, char* key, char* value);
+void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
 
 
 //
@@ -28,9 +28,9 @@ void FieldChangeCallback_cgo(int error_code, void* handle, void* cookie, unsigne
 	fieldChangeCallback_Go(error_code, handle, cookie, eventCode, exchange, symbol, key, value);
 }
 
-void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, char* key, char* value)
+void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields)
 {
-	tradeCallback_Go(error_code, handle, cookie, eventCode, exchange, symbol, position, key, value);
+	tradeCallback_Go(error_code, handle, cookie, eventCode, exchange, symbol, position, fields);
 }
 
 
