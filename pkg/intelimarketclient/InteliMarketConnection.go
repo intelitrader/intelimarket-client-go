@@ -29,10 +29,14 @@ type PropertyChangeInfo struct {
 }
 
 type TradeChangeInfo struct {
-	Exchange, Symbol string
-	EventCode        EventCode
-    Position         uint32
-	Key, Value       string
+	Exchange, Symbol     string
+	Buyer, Seller        string
+	TradeId              string
+	Price                string
+	Quantity             string
+	NetChangePreviousDay string
+	Date                 string
+	Time                 string
 }
 
 func eventCodeToString(eventCode EventCode) string {
@@ -77,17 +81,14 @@ func (self PropertyChangeInfo) String() string {
 }
 
 func (self TradeChangeInfo) String() string {
-	ret := fmt.Sprintf("%v.%v - %v.%v",
+	ret := fmt.Sprintf("%v.%v - %v@%v - %v<-->%v",
 		self.Exchange,
 		self.Symbol,
-		eventCodeToString(self.EventCode),
-		self.Position)
+		self.Quantity,
+		self.Price,
+		self.Buyer,
+		self.Seller)
 
-	if self.Key != "" {
-		ret += fmt.Sprintf(" - %v=%v",
-			self.Key,
-			self.Value)
-	}
 	return ret
 }
 
@@ -112,7 +113,7 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
 
 	intelimarketclient.LogTrace("p9_OnTradeCallback", intelimarketConnection, symbol, position, key, value)
 
-	intelimarketConnection.tradeChangeChannel <- TradeChangeInfo{exchange, symbol, EventCode(eventCode), position, key, value}
+	intelimarketConnection.tradeChangeChannel <- TradeChangeInfo{} //, EventCode(eventCode), position, key, value}
 }
 
 func (self *InteliMarketConnection) String() string {
@@ -185,4 +186,3 @@ func (self *InteliMarketConnection) SubscribeGroupTrades(groupName string) {
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/trades", strings.ToLower(groupName))
 	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName)
 }
-
