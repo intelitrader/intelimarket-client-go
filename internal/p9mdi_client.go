@@ -39,7 +39,7 @@ func LogTrace(format string, args ...interface{}) {
 type PropertyCallback func(interface{}, uint32, string, string, string, string)
 
 // cookie, eventCode, exchange, symbol, position, key, value
-type TradeCallback func(interface{}, uint32, string, string, uint32, string, string)
+type TradeCallback func(interface{}, uint32, string, string, uint32, map[string]string)
 
 type P9GoConnection struct {
 	c_connection     *C.struct_P9MDI_CONNECTION
@@ -205,6 +205,14 @@ func tradeCallback_Go(
 	connectionId := uintptr(cookie)
 	p9_connection := g_activeConnections[connectionId]
 
+	fields := make(map[string]string)
+
+	//
+	// TODO: pegar todos os campos, não somente o primeiro
+	//
+	fields[key] = value
+		
+
 	LogTrace("tradeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, key=%v, value=%v",
 		p9_connection.connectionId,
 		eventCode,
@@ -214,5 +222,5 @@ func tradeCallback_Go(
 		key,
 		value)
 
-	p9_connection.tradeCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, key, value)
+	p9_connection.tradeCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
 }

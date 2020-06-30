@@ -108,12 +108,35 @@ func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange s
 	intelimarketConnection.propertyChangeChannel <- PropertyChangeInfo{exchange, symbol, EventCode(eventCode), key, value}
 }
 
-func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, key string, value string) {
+func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	intelimarketclient.LogTrace("p9_OnTradeCallback", intelimarketConnection, symbol, position, key, value)
+	intelimarketclient.LogTrace("p9_OnTradeCallback", intelimarketConnection, symbol, position, fields)
 
-	intelimarketConnection.tradeChangeChannel <- TradeChangeInfo{} //, EventCode(eventCode), position, key, value}
+	tradeInfo := TradeChangeInfo{}
+
+	for k, v := range fields { 
+		switch k {
+		case "MDEntryBuyer":
+			tradeInfo.Buyer = v
+		case "MDEntrySeller":
+			tradeInfo.Seller = v
+		case "TradeID":
+			tradeInfo.TradeId = v
+		case "MDEntryPx":
+			tradeInfo.Price = v
+		case "MDEntrySize":
+			tradeInfo.Quantity = v
+		case "NetChgPrevDay":
+			tradeInfo.NetChangePreviousDay = v
+		case "MDEntryDate":
+			tradeInfo.Date = v
+		case "MDEntryTime":
+			tradeInfo.Time = v
+		}
+	}
+
+	intelimarketConnection.tradeChangeChannel <- tradeInfo
 }
 
 func (self *InteliMarketConnection) String() string {
