@@ -111,7 +111,7 @@ func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange s
 func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	intelimarketclient.LogTrace("p9_OnTradeCallback", intelimarketConnection, symbol, position, fields)
+	intelimarketclient.LogTrace("p9_OnTradeCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
 
 	tradeInfo := TradeChangeInfo{}
 
