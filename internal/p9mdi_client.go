@@ -197,30 +197,26 @@ func tradeCallback_Go(
 	symbol := C.GoString(c_symbol)
 	key := "empty"
 	value := "empty"
-	if c_fields != nil {
-		key = C.GoString(c_fields.key)
-		value = C.GoString(c_fields.value)
-	}
 
 	connectionId := uintptr(cookie)
 	p9_connection := g_activeConnections[connectionId]
 
 	fields := make(map[string]string)
 
-	//
-	// TODO: pegar todos os campos, não somente o primeiro
-	//
-	fields[key] = value
-		
+    for ok := c_fields != nil; ok; ok = c_fields != nil {
+        key = C.GoString(c_fields.key)
+        value = C.GoString(c_fields.value)
+        fields[key] = value
+        c_fields = C.p9mdi_get_next_key_value_field(c_fields)
+    }
 
-	LogTrace("tradeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, key=%v, value=%v",
+	LogTrace("tradeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, fields=%v",
 		p9_connection.connectionId,
 		eventCode,
 		exchange,
-        position,
 		symbol,
-		key,
-		value)
+        position,
+		fields)
 
 	p9_connection.tradeCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
 }

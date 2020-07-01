@@ -199,6 +199,8 @@ void p9mdi_enable_message_dump_to_log(BOOL yes_or_no);
 
 int p9mdi_test();
 
+struct KEY_AND_VALUE* p9mdi_get_next_key_value_field(struct KEY_AND_VALUE* fields);
+
 #ifdef __cplusplus
 } //extern "C"
 #endif
