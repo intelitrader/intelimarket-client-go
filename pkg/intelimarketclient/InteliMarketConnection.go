@@ -115,6 +115,9 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
 
 	tradeInfo := TradeChangeInfo{}
 
+    tradeInfo.Exchange = exchange
+    tradeInfo.Symbol = symbol
+
 	for k, v := range fields { 
 		switch k {
 		case "MDEntryBuyer":
