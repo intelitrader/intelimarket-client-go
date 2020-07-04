@@ -201,6 +201,8 @@ int p9mdi_test();
 
 struct KEY_AND_VALUE* p9mdi_get_next_key_value_field(struct KEY_AND_VALUE* fields);
 
+int p9mdi_dispatch_pending_events_timeout(struct P9MDI_CONNECTION* connection, int timeout_in_seconds);
+
 #ifdef __cplusplus
 } //extern "C"
 #endif

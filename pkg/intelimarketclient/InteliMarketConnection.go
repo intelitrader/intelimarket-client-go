@@ -174,8 +174,8 @@ func (self *InteliMarketConnection) Connect(server string, port uint16) error {
 	return nil
 }
 
-func (self *InteliMarketConnection) DispatchPendingMessage() {
-	intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection)
+func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) int {
+	return intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
 }
 
 func (self *InteliMarketConnection) Disconnect() {
