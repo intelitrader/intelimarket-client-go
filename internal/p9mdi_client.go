@@ -146,6 +146,32 @@ func P9mdi_subscribe_instrument_properties(p9_connection *P9GoConnection, symbol
 	}
 }
 
+func P9mdi_subscribe_instrument_trades(p9_connection *P9GoConnection, symbol string, position int32) {
+	LogTrace("P9mdi_subscribe_instrument_trades: connectionId=%v, symbol=%v", p9_connection.connectionId, symbol)
+
+	c_exchange := C.CString("bvmf")
+	defer C.free(unsafe.Pointer(c_exchange))
+
+	c_symbol := C.CString(symbol)
+	defer C.free(unsafe.Pointer(c_symbol))
+
+    c_position := C.uint(position)
+
+	var cookie uintptr = uintptr(p9_connection.connectionId)
+
+	result := C.p9mdi_subscribe_instrument_trades(
+		p9_connection.c_connection,
+		c_exchange,
+		c_symbol,
+		c_position,
+		(C.ListChangeCallback)(unsafe.Pointer(C.TradeCallback_cgo)),
+		(unsafe.Pointer)(cookie))
+
+	if result != 0 {
+		println("Error on set instrument properties callback")
+	}
+}
+
 func P9mdi_dispatch_pending_events(p9_connection *P9GoConnection, timeoutSeconds int) int {
 	result := C.p9mdi_dispatch_pending_events_timeout(p9_connection.c_connection, C.int(timeoutSeconds))
 	LogTrace("P9mdi_dispatch_pending_events_timeout: connectionId=%v, result=%v", p9_connection.connectionId, result)

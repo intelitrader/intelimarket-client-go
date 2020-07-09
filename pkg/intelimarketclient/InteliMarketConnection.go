@@ -3,6 +3,7 @@ package intelimarketclient
 import (
 	"fmt"
 	"strings"
+    "strconv"
 
 	intelimarketclient "bitbucket.org/intelitrader/intelimarket-client-go/internal"
 )
@@ -37,6 +38,7 @@ type TradeChangeInfo struct {
 	NetChangePreviousDay string
 	Date                 string
 	Time                 string
+	Position             string
 }
 
 func eventCodeToString(eventCode EventCode) string {
@@ -81,13 +83,14 @@ func (self PropertyChangeInfo) String() string {
 }
 
 func (self TradeChangeInfo) String() string {
-	ret := fmt.Sprintf("%v.%v - %v@%v - %v<-->%v",
+	ret := fmt.Sprintf("%v.%v - %v@%v - %v<-->%v %v",
 		self.Exchange,
 		self.Symbol,
 		self.Quantity,
 		self.Price,
 		self.Buyer,
-		self.Seller)
+		self.Seller,
+        self.Position)
 
 	return ret
 }
@@ -117,6 +120,7 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
 
     tradeInfo.Exchange = exchange
     tradeInfo.Symbol = symbol
+    tradeInfo.Position = strconv.FormatUint(uint64(position), 10)
 
 	for k, v := range fields { 
 		switch k {
@@ -139,7 +143,9 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
 		}
 	}
 
-	intelimarketConnection.tradeChangeChannel <- tradeInfo
+    if len(tradeInfo.TradeId) > 0 {
+	    intelimarketConnection.tradeChangeChannel <- tradeInfo
+    }
 }
 
 func (self *InteliMarketConnection) String() string {
@@ -193,6 +199,11 @@ func (self *InteliMarketConnection) Disconnect() {
 
 func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string) {
 	intelimarketclient.P9mdi_subscribe_instrument_properties(self.c_connection, symbol)
+}
+
+func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, position string) {
+	int_position, _ := strconv.ParseInt(position, 10, 32)
+	intelimarketclient.P9mdi_subscribe_instrument_trades(self.c_connection, symbol, -int32(int_position))
 }
 
 func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
