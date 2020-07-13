@@ -26,7 +26,7 @@ func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
 	for {
 		info := <-channel
 		log.Println("Trade change:", info)
-        InstrumentsLastPosition[info.Symbol] = info.Position
+        //InstrumentsLastPosition[info.Symbol] = info.Position
 	}
 }
 
@@ -89,14 +89,14 @@ func main() {
             for i, groupName := range groups[:groupCount] {
                 log.Printf("Subscribing to group %v (%v/%v)\n", groupName, i+1, groupCount)
                 //connection.SubscribeGroupProperties(groupName)
-                connection.SubscribeGroupTrades(groupName)
+                connection.SubscribeGroupTrades(groupName, "0")
             }
         }
 
         for i, symbol := range instruments[:instrumentCount] {
             log.Printf("Subscribing to %v (%v/%v)\n", symbol, i+1, instrumentCount)
             //connection.SubscribeInstrumentProperties(symbol)
-            connection.SubscribeInstrumentTrades(symbol, "0")
+            connection.SubscribeInstrumentTrades(symbol, "1000")
         }
 
         for {

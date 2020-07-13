@@ -100,10 +100,11 @@ func P9mdi_disconnect(p9_connection *P9GoConnection) {
 	p9_connection.c_connection = nil
 }
 
-func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string) {
+func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string, position int32) {
 	LogTrace("P9mdi_subscribe_group: connectionId=%v, groupName=%v", p9_connection.connectionId, groupName)
 
 	cGroupName := C.CString(groupName)
+    c_position := C.int(position)
 	defer C.free(unsafe.Pointer(cGroupName))
 
 	var cookie uintptr = uintptr(p9_connection.connectionId)
@@ -119,7 +120,7 @@ func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string) {
 	C.p9mdi_subscribe_group(
 		p9_connection.c_connection,
 		cGroupName,
-		0) // 0 = começa do item 0 de cada container, logo, SnapshotPlusIncremental
+		c_position)
 }
 
 func P9mdi_subscribe_instrument_properties(p9_connection *P9GoConnection, symbol string) {

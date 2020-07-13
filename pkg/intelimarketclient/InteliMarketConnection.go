@@ -203,7 +203,7 @@ func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string)
 
 func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, position string) {
 	int_position, _ := strconv.ParseInt(position, 10, 32)
-	intelimarketclient.P9mdi_subscribe_instrument_trades(self.c_connection, symbol, -int32(int_position))
+	intelimarketclient.P9mdi_subscribe_instrument_trades(self.c_connection, symbol, int32(int_position))
 }
 
 func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
@@ -212,14 +212,15 @@ func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
 	// (tudo que começa com __meta__/groups dentro do tio)
 	//
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/properties", strings.ToLower(groupName))
-	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName)
+	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, 0)
 }
 
-func (self *InteliMarketConnection) SubscribeGroupTrades(groupName string) {
+func (self *InteliMarketConnection) SubscribeGroupTrades(groupName string, position string) {
 	//
 	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
 	// (tudo que começa com __meta__/groups dentro do tio)
 	//
+	int_position, _ := strconv.ParseInt(position, 10, 32)
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/trades", strings.ToLower(groupName))
-	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName)
+	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, -int32(int_position))
 }
