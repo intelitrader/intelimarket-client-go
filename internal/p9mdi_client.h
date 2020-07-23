@@ -203,6 +203,8 @@ struct KEY_AND_VALUE* p9mdi_get_next_key_value_field(struct KEY_AND_VALUE* field
 
 int p9mdi_dispatch_pending_events_timeout(struct P9MDI_CONNECTION* connection, int timeout_in_seconds);
 
+int p9mdi_ping(struct P9MDI_CONNECTION* connection, char* payload);
+
 #ifdef __cplusplus
 } //extern "C"
 #endif

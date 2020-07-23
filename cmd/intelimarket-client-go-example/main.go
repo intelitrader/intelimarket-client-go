@@ -17,8 +17,6 @@ func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
 	}
 }
 
-var InstrumentsLastPosition map[string]string = make(map[string]string)
-
 func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
 
 	log.Println("TradeToStdOut, reading", channel)
@@ -26,7 +24,6 @@ func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
 	for {
 		info := <-channel
 		log.Println("Trade change:", info)
-        //InstrumentsLastPosition[info.Symbol] = info.Position
 	}
 }
 
@@ -37,7 +34,6 @@ func main() {
 
         log.Println("Connecting to", hostname)
         err := connection.Connect(hostname, 2605)
-        defer connection.Disconnect()
 
         for err != nil {
             log.Println("Connecting...", err)
@@ -76,32 +72,21 @@ func main() {
 
         go PropertyToStdOut(connection.GetPropertyChangeChannel())
         go TradeToStdOut(connection.GetTradeChangeChannel())
-        //statsPrinter := NewInstrumentsEventsStatsPrinter(10)
-        //statsPrinter.LaunchAsyncStatisticsPrinter(connection.GetPropertyChangeChannel())
 
-        if len(InstrumentsLastPosition) > 0 {
-            for k, v := range InstrumentsLastPosition { 
-                log.Printf("Subscribing to %v\n", k)
-                //connection.SubscribeInstrumentProperties(symbol)
-                connection.SubscribeInstrumentTrades(k, v)
-            }
-        } else  {
-            for i, groupName := range groups[:groupCount] {
-                log.Printf("Subscribing to group %v (%v/%v)\n", groupName, i+1, groupCount)
-                //connection.SubscribeGroupProperties(groupName)
-                connection.SubscribeGroupTrades(groupName, "0")
-            }
+        for i, groupName := range groups[:groupCount] {
+            log.Printf("Subscribing to group %v (%v/%v)\n", groupName, i+1, groupCount)
+            connection.SubscribeGroupTrades(groupName, "0")
         }
 
         for i, symbol := range instruments[:instrumentCount] {
             log.Printf("Subscribing to %v (%v/%v)\n", symbol, i+1, instrumentCount)
-            //connection.SubscribeInstrumentProperties(symbol)
             connection.SubscribeInstrumentTrades(symbol, "1000")
         }
 
         for {
             result := connection.DispatchPendingMessage(10)
-            if result == -6 || result == -2 {
+            if result == -2 {
+                connection.Disconnect()
                 log.Println("Network error. Waiting for 10 seconds to reconnect.")
                 time.Sleep(10 * time.Second)
                 break

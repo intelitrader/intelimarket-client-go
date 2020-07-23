@@ -83,9 +83,10 @@ func (self PropertyChangeInfo) String() string {
 }
 
 func (self TradeChangeInfo) String() string {
-	ret := fmt.Sprintf("%v.%v - %v@%v - %v<-->%v %v",
+	ret := fmt.Sprintf("%v.%v.%v - %v@%v - %v<-->%v %v",
 		self.Exchange,
 		self.Symbol,
+		self.TradeId,
 		self.Quantity,
 		self.Price,
 		self.Buyer,
@@ -181,7 +182,15 @@ func (self *InteliMarketConnection) Connect(server string, port uint16) error {
 }
 
 func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) int {
-	return intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
+	result := intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
+    if result == -6 {
+	    intelimarketclient.LogTrace("DispatchPendingMessage timeout; sending ping")
+        pingResult := intelimarketclient.P9mdi_ping(self.c_connection, "intelimarket-go")
+        if pingResult < 0 {
+            return pingResult
+        }
+    }
+    return result
 }
 
 func (self *InteliMarketConnection) Disconnect() {

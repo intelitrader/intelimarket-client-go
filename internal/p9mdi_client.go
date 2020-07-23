@@ -179,6 +179,14 @@ func P9mdi_dispatch_pending_events(p9_connection *P9GoConnection, timeoutSeconds
     return int(result)
 }
 
+func P9mdi_ping(p9_connection *P9GoConnection, payload string) int {
+	c_payload := C.CString(payload)
+	defer C.free(unsafe.Pointer(c_payload))
+	result := C.p9mdi_ping(p9_connection.c_connection, c_payload)
+	LogTrace("P9mdi_ping: connectionId=%v, payload=%v, result=%v", p9_connection.connectionId, payload, result)
+    return int(result)
+}
+
 //export fieldChangeCallback_Go
 func fieldChangeCallback_Go(
 	errorCode int32,
