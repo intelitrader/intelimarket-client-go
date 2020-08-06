@@ -15,7 +15,6 @@ void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned
 void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
 
 #cgo LDFLAGS: -L./bin -lp9mdi_client
-#cgo pkg-config: glib-2.0
 */
 import "C"
 
