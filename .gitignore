@@ -1,3 +1,4 @@
 *.orig
 **/_obj/**
 cmd/intelimarket-client-go-example/intelimarket-client-go-example
+cmd/intelimarket-client-go-example/intelimarket-client-go-example.exe
