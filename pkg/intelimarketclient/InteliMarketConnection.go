@@ -41,6 +41,10 @@ type TradeChangeInfo struct {
 	Position             string
 }
 
+func LogTrace(format string, args ...interface{}) {
+	intelimarketclient.LogTrace(format, args...)
+}
+
 func eventCodeToString(eventCode EventCode) string {
 	switch eventCode {
 	case EventCodeSet:
@@ -107,7 +111,7 @@ type InteliMarketConnection struct {
 func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, key string, value string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	intelimarketclient.LogTrace("p9_OnPropertyCallback", intelimarketConnection, symbol, key, value)
+	LogTrace("p9_OnPropertyCallback", intelimarketConnection, symbol, key, value)
 
 	intelimarketConnection.propertyChangeChannel <- PropertyChangeInfo{exchange, symbol, EventCode(eventCode), key, value}
 }
@@ -115,7 +119,7 @@ func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange s
 func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	intelimarketclient.LogTrace("p9_OnTradeCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
+	LogTrace("p9_OnTradeCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
 
 	tradeInfo := TradeChangeInfo{}
 
