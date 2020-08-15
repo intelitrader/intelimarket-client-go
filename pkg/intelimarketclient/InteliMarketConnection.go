@@ -3,6 +3,7 @@ package intelimarketclient
 import (
 	"fmt"
 	"strings"
+    "runtime"
     "strconv"
 
 	intelimarketclient "bitbucket.org/intelitrader/intelimarket-client-go/internal"
@@ -165,19 +166,29 @@ func (self *InteliMarketConnection) GetTradeChangeChannel() <-chan TradeChangeIn
 	return self.tradeChangeChannel
 }
 
-func (self *InteliMarketConnection) Connect(server string, port uint16) error {
-	intelimarketclient.LogTrace("Connecting to %v:%v", server, port)
+func LogStats(event string) {
+    var mem runtime.MemStats
+    runtime.ReadMemStats(&mem)
+    var mb = mem.TotalAlloc / 1024 / 1024
+    line := fmt.Sprintf("event: %s, memory %dMB", event, mb)
+    LogTrace(line)
+}
 
+func (self *InteliMarketConnection) Connect(server string, port uint16, logpath string, chansize int) error {
 	var err error
 
-	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, p9_OnPropertyCallback, p9_OnTradeCallback, self)
+    LogStats("intelimarketclient::connecting")
+	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, logpath, p9_OnPropertyCallback, p9_OnTradeCallback, self)
+	LogTrace("Connecting to %v:%v", server, port)
 
 	if err != nil {
 		return err
 	}
 
-	self.propertyChangeChannel = make(chan PropertyChangeInfo, 1024*1024)
-	self.tradeChangeChannel = make(chan TradeChangeInfo, 1024*1024)
+    LogStats("intelimarketclient::connected")
+	self.propertyChangeChannel = make(chan PropertyChangeInfo, chansize)
+	self.tradeChangeChannel = make(chan TradeChangeInfo, chansize)
+    LogStats("intelimarketclient::channels_created")
 
 	self.hostname = server
 	self.port = port
@@ -186,15 +197,21 @@ func (self *InteliMarketConnection) Connect(server string, port uint16) error {
 }
 
 func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) int {
-	result := intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
-    if result == -6 {
-	    intelimarketclient.LogTrace("DispatchPendingMessage timeout; sending ping")
-        pingResult := intelimarketclient.P9mdi_ping(self.c_connection, "intelimarket-go")
-        if pingResult < 0 {
-            return pingResult
+	if self.c_connection != nil {
+        LogStats("intelimarketclient::dispatching")
+        result := intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
+        LogStats("intelimarketclient::dispatched")
+        if result == -6 {
+            LogTrace("DispatchPendingMessage timeout; sending ping")
+            pingResult := intelimarketclient.P9mdi_ping(self.c_connection, "intelimarket-go")
+            if pingResult < 0 {
+                return pingResult
+            }
         }
+        return result
+    } else {
+        return -2
     }
-    return result
 }
 
 func (self *InteliMarketConnection) Disconnect() {
