@@ -20,18 +20,15 @@ import "C"
 
 import (
 	"errors"
-	"log"
+	"fmt"
 	"unsafe"
 )
 
-var g_traceLogEnabled bool = false
-
 func LogTrace(format string, args ...interface{}) {
-	if !g_traceLogEnabled {
-		return
-	}
-
-	log.Printf(format, args...)
+	line := fmt.Sprintf(format, args...)
+    c_line := C.CString(line)
+	defer C.free(unsafe.Pointer(c_line))
+    C.p9mdi_log(c_line)
 }
 
 // cookie, eventCode, exchange, symbol, key, value
@@ -58,19 +55,22 @@ type P9GoConnection struct {
 var g_lastConnectionId uintptr = 0
 var g_activeConnections = map[uintptr]P9GoConnection{}
 
-func P9mdi_connect(hostname string, port uint16, propertyCallback PropertyCallback, tradeCallback TradeCallback, eventCookie interface{}) (*P9GoConnection, error) {
+func P9mdi_connect(hostname string, port uint16, logpath string, propertyCallback PropertyCallback, tradeCallback TradeCallback, eventCookie interface{}) (*P9GoConnection, error) {
 	LogTrace("P9mdi_connect: hostname=%v, port=%v", hostname, port)
 	var cn *C.struct_P9MDI_CONNECTION
 
 	c_hostname := C.CString(hostname)
 	defer C.free(unsafe.Pointer(c_hostname))
 
+	c_logpath := C.CString(logpath)
+	defer C.free(unsafe.Pointer(c_logpath))
+
 	err := C.p9mdi_connect(
 		c_hostname,
 		C.ushort(port),
 		nil,
 		nil,
-		nil,
+		c_logpath,
 		&cn)
 
 	if err != 0 {
