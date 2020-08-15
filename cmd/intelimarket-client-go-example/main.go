@@ -3,29 +3,70 @@ package main
 import (
 	"log"
     "flag"
+    "fmt"
+    "os"
+    "runtime"
     "strings"
     "time"
 
 	"bitbucket.org/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
 )
 
+var g_verbose bool = false
+var g_tradeCount int = 0
+var g_propertyCount int = 0
+var g_lastTick time.Time = time.Now()
+
+func PrintLogTrace(line string) {
+    intelimarketclient.LogTrace(line)
+    log.Printf("%s\n", line)
+}
+
+func LogStats() {
+    var mem runtime.MemStats
+    runtime.ReadMemStats(&mem)
+    var mb = mem.TotalAlloc / 1024 / 1024
+    line := fmt.Sprintf("EVENTS: properties %d, trades %d, memory %dMB", g_propertyCount, g_tradeCount, mb)
+    PrintLogTrace(line)
+}
+
+func Tick() {
+    t0 := time.Now()
+    if t0.Sub(g_lastTick).Seconds() > 2 {
+        g_lastTick = t0
+        LogStats()
+    }
+}
+
 func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
 
-	log.Println("PropertyToStdOut, reading", channel)
+    PrintLogTrace(fmt.Sprintf("PropertyToStdOut, reading %s", channel))
 
 	for {
 		info := <-channel
-		log.Println("Property change:", info)
+        line := fmt.Sprintf("Property change: %s", info)
+        if g_verbose {
+            log.Println(line)
+        }
+        intelimarketclient.LogTrace(line)
+        g_propertyCount += 1
+        Tick()
 	}
 }
 
 func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
 
-	log.Println("TradeToStdOut, reading", channel)
+    PrintLogTrace(fmt.Sprintf("TradeToStdOut, reading %s", channel))
 
 	for {
 		info := <-channel
-		log.Println("Trade change:", info)
+        line := fmt.Sprintf("Trade event: %s", info)
+        if g_verbose {
+            log.Println(line)
+        }
+        intelimarketclient.LogTrace(line)
+        g_tradeCount += 1
+        Tick()
 	}
 }
 
@@ -41,55 +82,88 @@ func (i *arrayFlags) Set(value string) error {
 }
 
 func main() {
+
+    serverPtr := flag.String("server", "demo.intelitrader.com.br", "where to connect")
+    portPtr := flag.Int("port", 2605, "port to connect")
+    logpathPtr := flag.String("log-path", ".", "path to log")
+    snapshotSizePtr := flag.String("snapshot-size", "0", "how many past events")
+    timeoutPtr := flag.Int("timeout", 10, "timeout in seconds")
+    verbosePtr := flag.Bool("verbose", false, "verbose output")
+    dispatchLoopPtr := flag.Int("dispatch-loop", 0, "how many dispatch loops before exit")
+    subscribePropertiesPtr := flag.Bool("subscribe-properties", false, "subscribe properties")
+    subscribeTradesPtr := flag.Bool("subscribe-trades", false, "subscribe trades")
+    chansizePtr := flag.Int("chan-size", 1024, "how many allocated channels to each event channel")
+
+    var groups arrayFlags
+    flag.Var(&groups, "group", "group(s)")
+    var instruments arrayFlags
+    flag.Var(&instruments, "instrument", "instrument(s)")
+
+    flag.Parse()
+
+    server := *serverPtr
+    port := uint16(*portPtr)
+    logpath := *logpathPtr
+    snapshotSize := *snapshotSizePtr
+    timeout := *timeoutPtr
+    dispatchLoop := *dispatchLoopPtr
+    subscribeProperties := *subscribePropertiesPtr
+    subscribeTrades := *subscribeTradesPtr
+    chansize := *chansizePtr
+
+    g_verbose = *verbosePtr
+
     for {
-        connection := intelimarketclient.InteliMarketConnection{}
-        hostnamePtr := flag.String("hostname", "demo.intelitrader.com.br", "where to connect")
-        portPtr := flag.Int("port", 2605, "port to connect")
-        snapshotSizePtr := flag.String("snapshot-size", "0", "how many past events")
-        timeoutPtr := flag.Int("timeout", 10, "timeout in seconds")
-        var groups arrayFlags
-        flag.Var(&groups, "group", "group(s)")
-        var instruments arrayFlags
-        flag.Var(&instruments, "instrument", "instrument(s)")
+        connection := &intelimarketclient.InteliMarketConnection{}
 
-        flag.Parse()
-
-        hostname := *hostnamePtr
-        port := uint16(*portPtr)
-        snapshotSize := *snapshotSizePtr
-        timeout := *timeoutPtr
-
-        log.Printf("Connecting to %s:%d\n", hostname, port)
-        err := connection.Connect(hostname, port)
+        log.Printf("Connecting to %s:%d\n", server, port)
+        err := connection.Connect(server, port, logpath, chansize)
 
         for err != nil {
             log.Println("Connecting...", err)
-            err = connection.Connect(hostname, port)
+            err = connection.Connect(server, port, logpath, chansize)
         }
 
+        var connected = true
         log.Println("Connected!")
+        PrintLogTrace(strings.Join(os.Args, " "))
+        LogStats()
 
-        go PropertyToStdOut(connection.GetPropertyChangeChannel())
-        go TradeToStdOut(connection.GetTradeChangeChannel())
-
-        for _, symbol := range groups {
-            log.Printf("Subscribing to group %s\n", symbol)
-            connection.SubscribeGroupTrades(symbol, "0")
+        if subscribeProperties {
+            go PropertyToStdOut(connection.GetPropertyChangeChannel())
+            for _, symbol := range groups {
+                PrintLogTrace(fmt.Sprintf("Subscribing to group %s", symbol))
+                    connection.SubscribeGroupTrades(symbol, "0")
+            }
         }
 
-        for _, symbol := range instruments {
-            log.Printf("Subscribing to %s\n", symbol)
-            connection.SubscribeInstrumentTrades(symbol, snapshotSize)
+        if subscribeTrades {
+            go TradeToStdOut(connection.GetTradeChangeChannel())
+            for _, symbol := range instruments {
+                PrintLogTrace(fmt.Sprintf("Subscribing to %s", symbol))
+                connection.SubscribeInstrumentTrades(symbol, snapshotSize)
+            }
         }
 
-        for {
+        for dloop := 0; dispatchLoop == 0 || dloop < dispatchLoop; dloop++ {
+            PrintLogTrace("Dispatching pending messages")
             result := connection.DispatchPendingMessage(timeout)
+            PrintLogTrace(fmt.Sprintf("Dispatch #%d result %d", dloop, result))
+            LogStats()
             if result == -2 {
                 connection.Disconnect()
-                log.Printf("Network error. Waiting for %d seconds to reconnect.\n", timeout)
-                time.Sleep(time.Duration(timeout) * time.Second)
+                PrintLogTrace("NETWORK ERROR; reconnecting")
+                connected = false
                 break
             }
         }
+
+        if connected {
+            PrintLogTrace("Dispatch loop done and still connected; disconnecting")
+            connection.Disconnect()
+        }
+        connection = nil
+        PrintLogTrace(fmt.Sprintf("Waiting for %d seconds to reconnect.", timeout))
+        time.Sleep(time.Duration(timeout) * time.Second)
     }
 }
