@@ -186,6 +186,11 @@ func P9mdi_ping(p9_connection *P9GoConnection, payload string) int {
     return int(result)
 }
 
+func P9mdi_get_last_error(p9_connection *P9GoConnection) int {
+	result := C.p9mdi_get_last_error(p9_connection.c_connection)
+    return int(result)
+}
+
 //export fieldChangeCallback_Go
 func fieldChangeCallback_Go(
 	errorCode int32,

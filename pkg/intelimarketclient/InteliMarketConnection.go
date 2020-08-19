@@ -196,21 +196,24 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 	return nil
 }
 
-func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) int {
+func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) (int, int) {
 	if self.c_connection != nil {
+        internalError := 0
         LogStats("intelimarketclient::dispatching")
         result := intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
-        LogStats("intelimarketclient::dispatched")
+        internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
+        LogStats(fmt.Sprintf("intelimarketclient::dispatched (result %d, internal error %d)", result, internalError))
         if result == -6 {
             LogTrace("DispatchPendingMessage timeout; sending ping")
             pingResult := intelimarketclient.P9mdi_ping(self.c_connection, "intelimarket-go")
             if pingResult < 0 {
-                return pingResult
+                internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
+                return pingResult, internalError
             }
         }
-        return result
+        return result, internalError
     } else {
-        return -2
+        return -2, 0
     }
 }
 

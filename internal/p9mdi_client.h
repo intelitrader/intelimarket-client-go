@@ -205,6 +205,8 @@ int p9mdi_dispatch_pending_events_timeout(struct P9MDI_CONNECTION* connection, i
 
 int p9mdi_ping(struct P9MDI_CONNECTION* connection, char* payload);
 
+int p9mdi_get_last_error(struct P9MDI_CONNECTION* connection);
+
 #ifdef __cplusplus
 } //extern "C"
 #endif
