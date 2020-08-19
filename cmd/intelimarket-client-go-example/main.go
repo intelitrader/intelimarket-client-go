@@ -25,7 +25,7 @@ func PrintLogTrace(line string) {
 func LogStats() {
     var mem runtime.MemStats
     runtime.ReadMemStats(&mem)
-    var mb = mem.TotalAlloc / 1024 / 1024
+    var mb = mem.HeapAlloc / 1024 / 1024
     line := fmt.Sprintf("EVENTS: properties %d, trades %d, memory %dMB", g_propertyCount, g_tradeCount, mb)
     PrintLogTrace(line)
 }
@@ -116,12 +116,14 @@ func main() {
     for {
         connection := &intelimarketclient.InteliMarketConnection{}
 
-        log.Printf("Connecting to %s:%d\n", server, port)
-        err := connection.Connect(server, port, logpath, chansize)
-
-        for err != nil {
-            log.Println("Connecting...", err)
-            err = connection.Connect(server, port, logpath, chansize)
+        for {
+            log.Printf("Connecting to %s:%d\n", server, port)
+            err := connection.Connect(server, port, logpath, chansize)
+            if err == nil {
+                break
+            }
+            PrintLogTrace(fmt.Sprintf("Connection error; waiting for %d seconds to try again.", timeout))
+            time.Sleep(time.Duration(timeout) * time.Second)
         }
 
         var connected = true
@@ -131,9 +133,13 @@ func main() {
 
         if subscribeProperties {
             go PropertyToStdOut(connection.GetPropertyChangeChannel())
+            for _, symbol := range instruments {
+                PrintLogTrace(fmt.Sprintf("Subscribing to group %s", symbol))
+                    connection.SubscribeInstrumentTrades(symbol, snapshotSize)
+            }
             for _, symbol := range groups {
                 PrintLogTrace(fmt.Sprintf("Subscribing to group %s", symbol))
-                    connection.SubscribeGroupTrades(symbol, "0")
+                    connection.SubscribeGroupTrades(symbol, snapshotSize)
             }
         }
 
@@ -143,16 +149,22 @@ func main() {
                 PrintLogTrace(fmt.Sprintf("Subscribing to %s", symbol))
                 connection.SubscribeInstrumentTrades(symbol, snapshotSize)
             }
+            for _, symbol := range groups {
+                PrintLogTrace(fmt.Sprintf("Subscribing to %s", symbol))
+                connection.SubscribeGroupTrades(symbol, snapshotSize)
+            }
         }
 
+        PrintLogTrace("Dispatching pending messages")
         for dloop := 0; dispatchLoop == 0 || dloop < dispatchLoop; dloop++ {
-            PrintLogTrace("Dispatching pending messages")
-            result := connection.DispatchPendingMessage(timeout)
-            PrintLogTrace(fmt.Sprintf("Dispatch #%d result %d", dloop, result))
-            LogStats()
+            result, internalError := connection.DispatchPendingMessage(timeout)
+            if g_verbose {
+                PrintLogTrace(fmt.Sprintf("Dispatch #%d result %d (internal error %d)", dloop, result, internalError))
+                LogStats()
+            }
             if result == -2 {
+                PrintLogTrace(fmt.Sprintf("NETWORK ERROR (internal error %d); reconnecting", internalError))
                 connection.Disconnect()
-                PrintLogTrace("NETWORK ERROR; reconnecting")
                 connected = false
                 break
             }
@@ -163,7 +175,5 @@ func main() {
             connection.Disconnect()
         }
         connection = nil
-        PrintLogTrace(fmt.Sprintf("Waiting for %d seconds to reconnect.", timeout))
-        time.Sleep(time.Duration(timeout) * time.Second)
     }
 }
