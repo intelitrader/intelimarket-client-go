@@ -40,7 +40,6 @@ func Tick() {
 
 func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
 
-    PrintLogTrace(fmt.Sprintf("PropertyToStdOut, reading %s", channel))
 	for {
 		info := <-channel
         line := fmt.Sprintf("Property change: %s", info)
@@ -55,7 +54,6 @@ func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
 
 func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
 
-    PrintLogTrace(fmt.Sprintf("TradeToStdOut, reading %s", channel))
 	for {
 		info := <-channel
         line := fmt.Sprintf("Trade event: %s", info)
@@ -87,6 +85,7 @@ func main() {
     snapshotSizePtr := flag.String("snapshot-size", "0", "how many past events")
     timeoutPtr := flag.Int("timeout", 10, "timeout in seconds")
     verbosePtr := flag.Bool("verbose", false, "verbose output")
+    dispatchLoopPtr := flag.Int("dispatch-loop", 0, "how many dispatch loops before exit")
     subscribePropertiesPtr := flag.Bool("subscribe-properties", false, "subscribe properties")
     subscribeTradesPtr := flag.Bool("subscribe-trades", false, "subscribe trades")
     chansizePtr := flag.Int("chan-size", 1024, "how many allocated channels to each event channel")
@@ -106,7 +105,7 @@ func main() {
     subscribeProperties := *subscribePropertiesPtr
     subscribeTrades := *subscribeTradesPtr
     chansize := *chansizePtr
-
+	dispatchLoop := *dispatchLoopPtr
     g_verbose = *verbosePtr
 
 	connection := &intelimarketclient.InteliMarketConnection{}
@@ -127,31 +126,38 @@ func main() {
         PrintLogTrace(strings.Join(os.Args, " "))
         LogStats()
 
-        if subscribeProperties || subscribeTrades {
+        if subscribeTrades {
+            for _, symbol := range instruments {
+                PrintLogTrace(fmt.Sprintf("Subscribing to %s", symbol))
+                connection.SubscribeInstrumentTrades(symbol, snapshotSize)
+            }
+            for _, symbol := range groups {
+                PrintLogTrace(fmt.Sprintf("Subscribing to %s", symbol))
+                connection.SubscribeGroupTrades(symbol, snapshotSize)
+            }
+            go TradeToStdOut(connection.GetTradeChangeChannel())
+        }
+
+        if subscribeProperties {
             for _, symbol := range instruments {
                 PrintLogTrace(fmt.Sprintf("Subscribing to group %s", symbol))
-                    connection.SubscribeInstrumentTrades(symbol, snapshotSize)
+                    connection.SubscribeInstrumentProperties(symbol)
             }
-
             for _, symbol := range groups {
                 PrintLogTrace(fmt.Sprintf("Subscribing to group %s", symbol))
-                    connection.SubscribeGroupTrades(symbol, snapshotSize)
+                    connection.SubscribeGroupProperties(symbol)
             }
-
-            if subscribeProperties {
-                go PropertyToStdOut(connection.GetPropertyChangeChannel())
-            }
-
-            if subscribeTrades {
-                go TradeToStdOut(connection.GetTradeChangeChannel())
-            }
-
+            go PropertyToStdOut(connection.GetPropertyChangeChannel())
         }
 
 
         PrintLogTrace("Dispatching pending messages")
-        for {
+        for dloop := 0; dispatchLoop == 0 || dloop < dispatchLoop; dloop++ {
             result, internalError := connection.DispatchPendingMessage(timeout)
+            if g_verbose {
+                PrintLogTrace(fmt.Sprintf("Dispatch #%d result %d (internal error %d)", dloop, result, internalError))
+                LogStats()
+            }
             if result == -2 {
                 PrintLogTrace(fmt.Sprintf("NETWORK ERROR (internal error %d); reconnecting", internalError))
                 connection.Disconnect()
