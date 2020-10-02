@@ -221,17 +221,8 @@ func (self *InteliMarketConnection) Disconnect() {
 		return
 	}
 	intelimarketclient.P9mdi_disconnect(self.c_connection)
-    if (self.propertyChangeChannel != nil) {
-        close(self.propertyChangeChannel)
-    }
-
-    if (self.tradeChangeChannel != nil) {
-        close(self.tradeChangeChannel)
-    }
 
 	self.c_connection = nil
-	self.propertyChangeChannel = nil
-	self.tradeChangeChannel = nil
 }
 
 func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string) {
