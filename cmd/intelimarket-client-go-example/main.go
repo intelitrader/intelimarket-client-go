@@ -39,7 +39,7 @@ func Tick() {
 }
 
 func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
-
+	PrintLogTrace(fmt.Sprintf("PropertyToStdOut, reading %s", channel))
 	for {
 		info := <-channel
         line := fmt.Sprintf("Property change: %s", info)
@@ -53,7 +53,7 @@ func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
 }
 
 func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
-
+	PrintLogTrace(fmt.Sprintf("TradeToStdOut, reading %s", channel))
 	for {
 		info := <-channel
         line := fmt.Sprintf("Trade event: %s", info)
