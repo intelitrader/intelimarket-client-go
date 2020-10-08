@@ -16,6 +16,7 @@ var g_verbose bool = false
 var g_tradeCount int = 0
 var g_propertyCount int = 0
 var g_lastTick time.Time = time.Now()
+var tradeHistory []intelimarketclient.TradeChangeInfo
 
 func PrintLogTrace(line string) {
     intelimarketclient.LogTrace(line)
@@ -26,7 +27,8 @@ func LogStats() {
     var mem runtime.MemStats
     runtime.ReadMemStats(&mem)
     var mb = mem.HeapAlloc / 1024 / 1024
-    line := fmt.Sprintf("EVENTS: properties %d, trades %d, memory %dMB", g_propertyCount, g_tradeCount, mb)
+
+	line := fmt.Sprintf("EVENTS: properties %d, trades %d, memory %dMB\nInvalid Trades: %d", g_propertyCount, g_tradeCount, mb, g_tradeCount - invalid_trades)
     PrintLogTrace(line)
 }
 
@@ -62,6 +64,11 @@ func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
         }
         intelimarketclient.LogTrace(line)
         g_tradeCount += 1
+
+		if info_not_in(info, tradeHistory) {
+			tradeHistory = append(tradeHistory, info)
+		}
+
         Tick()
 	}
 }
@@ -128,11 +135,11 @@ func main() {
 
         if subscribeTrades {
             for _, symbol := range instruments {
-                PrintLogTrace(fmt.Sprintf("Subscribing to %s", symbol))
+                PrintLogTrace(fmt.Sprintf("Subscribing trades to %s", symbol))
                 connection.SubscribeInstrumentTrades(symbol, snapshotSize)
             }
             for _, symbol := range groups {
-                PrintLogTrace(fmt.Sprintf("Subscribing to %s", symbol))
+                PrintLogTrace(fmt.Sprintf("Subscribing trades to group %s", symbol))
                 connection.SubscribeGroupTrades(symbol, snapshotSize)
             }
             go TradeToStdOut(connection.GetTradeChangeChannel())
@@ -140,11 +147,11 @@ func main() {
 
         if subscribeProperties {
             for _, symbol := range instruments {
-                PrintLogTrace(fmt.Sprintf("Subscribing to group %s", symbol))
+                PrintLogTrace(fmt.Sprintf("Subscribing properties to %s", symbol))
                     connection.SubscribeInstrumentProperties(symbol)
             }
             for _, symbol := range groups {
-                PrintLogTrace(fmt.Sprintf("Subscribing to group %s", symbol))
+                PrintLogTrace(fmt.Sprintf("Subscribing properties to group %s", symbol))
                     connection.SubscribeGroupProperties(symbol)
             }
             go PropertyToStdOut(connection.GetPropertyChangeChannel())
