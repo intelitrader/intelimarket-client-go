@@ -16,7 +16,6 @@ var g_verbose bool = false
 var g_tradeCount int = 0
 var g_propertyCount int = 0
 var g_lastTick time.Time = time.Now()
-var tradeHistory []intelimarketclient.TradeChangeInfo
 
 func PrintLogTrace(line string) {
     intelimarketclient.LogTrace(line)
@@ -28,7 +27,7 @@ func LogStats() {
     runtime.ReadMemStats(&mem)
     var mb = mem.HeapAlloc / 1024 / 1024
 
-	line := fmt.Sprintf("EVENTS: properties %d, trades %d, memory %dMB\nInvalid Trades: %d", g_propertyCount, g_tradeCount, mb, g_tradeCount - invalid_trades)
+	line := fmt.Sprintf("EVENTS: properties %d, trades %d, memory %dMB", g_propertyCount, g_tradeCount, mb)
     PrintLogTrace(line)
 }
 
@@ -64,11 +63,6 @@ func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
         }
         intelimarketclient.LogTrace(line)
         g_tradeCount += 1
-
-		if info_not_in(info, tradeHistory) {
-			tradeHistory = append(tradeHistory, info)
-		}
-
         Tick()
 	}
 }
