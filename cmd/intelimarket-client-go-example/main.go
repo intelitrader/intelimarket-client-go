@@ -113,8 +113,8 @@ func main() {
 
     g_verbose = *verbosePtr
 
+    connection := &intelimarketclient.InteliMarketConnection{}
     for {
-        connection := &intelimarketclient.InteliMarketConnection{}
 
         for {
             log.Printf("Connecting to %s:%d\n", server, port)
@@ -131,29 +131,30 @@ func main() {
         PrintLogTrace(strings.Join(os.Args, " "))
         LogStats()
 
-        if subscribeProperties {
-            go PropertyToStdOut(connection.GetPropertyChangeChannel())
-            for _, symbol := range instruments {
-                PrintLogTrace(fmt.Sprintf("Subscribing to group %s", symbol))
-                    connection.SubscribeInstrumentTrades(symbol, snapshotSize)
-            }
-            for _, symbol := range groups {
-                PrintLogTrace(fmt.Sprintf("Subscribing to group %s", symbol))
-                    connection.SubscribeGroupTrades(symbol, snapshotSize)
-            }
-        }
-
         if subscribeTrades {
-            go TradeToStdOut(connection.GetTradeChangeChannel())
             for _, symbol := range instruments {
-                PrintLogTrace(fmt.Sprintf("Subscribing to %s", symbol))
+                PrintLogTrace(fmt.Sprintf("Subscribing trades to %s", symbol))
                 connection.SubscribeInstrumentTrades(symbol, snapshotSize)
             }
             for _, symbol := range groups {
-                PrintLogTrace(fmt.Sprintf("Subscribing to %s", symbol))
+                PrintLogTrace(fmt.Sprintf("Subscribing trades to group %s", symbol))
                 connection.SubscribeGroupTrades(symbol, snapshotSize)
             }
+            go TradeToStdOut(connection.GetTradeChangeChannel())
         }
+
+        if subscribeProperties {
+            for _, symbol := range instruments {
+                PrintLogTrace(fmt.Sprintf("Subscribing properties to %s", symbol))
+                    connection.SubscribeInstrumentProperties(symbol)
+            }
+            for _, symbol := range groups {
+                PrintLogTrace(fmt.Sprintf("Subscribing properties to group %s", symbol))
+                    connection.SubscribeGroupProperties(symbol)
+            }
+            go PropertyToStdOut(connection.GetPropertyChangeChannel())
+        }
+
 
         PrintLogTrace("Dispatching pending messages")
         for dloop := 0; dispatchLoop == 0 || dloop < dispatchLoop; dloop++ {
@@ -174,6 +175,5 @@ func main() {
             PrintLogTrace("Dispatch loop done and still connected; disconnecting")
             connection.Disconnect()
         }
-        connection = nil
     }
 }
