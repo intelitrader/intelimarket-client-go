@@ -26,8 +26,7 @@ func LogStats() {
     var mem runtime.MemStats
     runtime.ReadMemStats(&mem)
     var mb = mem.HeapAlloc / 1024 / 1024
-
-	line := fmt.Sprintf("EVENTS: properties %d, trades %d, memory %dMB", g_propertyCount, g_tradeCount, mb)
+    line := fmt.Sprintf("EVENTS: properties %d, trades %d, memory %dMB", g_propertyCount, g_tradeCount, mb)
     PrintLogTrace(line)
 }
 
@@ -40,7 +39,9 @@ func Tick() {
 }
 
 func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
-	PrintLogTrace(fmt.Sprintf("PropertyToStdOut, reading %s", channel))
+
+    PrintLogTrace(fmt.Sprintf("PropertyToStdOut, reading %s", channel))
+
 	for {
 		info := <-channel
         line := fmt.Sprintf("Property change: %s", info)
@@ -54,7 +55,9 @@ func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
 }
 
 func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
-	PrintLogTrace(fmt.Sprintf("TradeToStdOut, reading %s", channel))
+
+    PrintLogTrace(fmt.Sprintf("TradeToStdOut, reading %s", channel))
+
 	for {
 		info := <-channel
         line := fmt.Sprintf("Trade event: %s", info)
@@ -103,13 +106,14 @@ func main() {
     logpath := *logpathPtr
     snapshotSize := *snapshotSizePtr
     timeout := *timeoutPtr
+    dispatchLoop := *dispatchLoopPtr
     subscribeProperties := *subscribePropertiesPtr
     subscribeTrades := *subscribeTradesPtr
     chansize := *chansizePtr
-	dispatchLoop := *dispatchLoopPtr
+
     g_verbose = *verbosePtr
 
-	connection := &intelimarketclient.InteliMarketConnection{}
+    connection := &intelimarketclient.InteliMarketConnection{}
     for {
 
         for {
