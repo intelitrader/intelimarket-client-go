@@ -132,6 +132,7 @@ func main() {
         LogStats()
 
         if subscribeTrades {
+            go TradeToStdOut(connection.GetTradeChangeChannel())
             for _, symbol := range instruments {
                 PrintLogTrace(fmt.Sprintf("Subscribing trades to %s", symbol))
                 connection.SubscribeInstrumentTrades(symbol, snapshotSize)
@@ -140,10 +141,10 @@ func main() {
                 PrintLogTrace(fmt.Sprintf("Subscribing trades to group %s", symbol))
                 connection.SubscribeGroupTrades(symbol, snapshotSize)
             }
-            go TradeToStdOut(connection.GetTradeChangeChannel())
         }
 
         if subscribeProperties {
+            go PropertyToStdOut(connection.GetPropertyChangeChannel())
             for _, symbol := range instruments {
                 PrintLogTrace(fmt.Sprintf("Subscribing properties to %s", symbol))
                     connection.SubscribeInstrumentProperties(symbol)
@@ -152,7 +153,6 @@ func main() {
                 PrintLogTrace(fmt.Sprintf("Subscribing properties to group %s", symbol))
                     connection.SubscribeGroupProperties(symbol)
             }
-            go PropertyToStdOut(connection.GetPropertyChangeChannel())
         }
 
 

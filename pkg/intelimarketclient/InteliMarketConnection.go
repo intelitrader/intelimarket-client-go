@@ -192,6 +192,11 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 	self.port = port
     self.chansize = chansize
 
+	self.tradeChangeChannel = make(chan TradeChangeInfo, self.chansize)
+		LogStats("intelimarketclient::trade_channel_created")
+	self.propertyChangeChannel = make(chan PropertyChangeInfo, self.chansize)
+		LogStats("intelimarketclient::property_channel_created")
+		
 	return nil
 }
 
@@ -249,11 +254,6 @@ func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
 	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
 	// (tudo que começa com __meta__/groups dentro do tio)
 	//
-	if self.propertyChangeChannel == nil {
-		self.propertyChangeChannel = make(chan PropertyChangeInfo, self.chansize)
-		LogStats("intelimarketclient::property_channel_created")
-	}
-
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/properties", strings.ToLower(groupName))
 	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, 0)
 }
@@ -263,11 +263,6 @@ func (self *InteliMarketConnection) SubscribeGroupTrades(groupName string, posit
 	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
 	// (tudo que começa com __meta__/groups dentro do tio)
 	//
-	if self.tradeChangeChannel == nil {
-		self.tradeChangeChannel = make(chan TradeChangeInfo, self.chansize)
-		LogStats("intelimarketclient::trade_channel_created")
-	}
-
 	int_position, _ := strconv.ParseInt(position, 10, 32)
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/trades", strings.ToLower(groupName))
 	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, -int32(int_position))
