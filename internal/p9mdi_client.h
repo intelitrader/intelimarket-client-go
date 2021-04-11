@@ -1,20 +1,10 @@
 #pragma once
 
-#ifndef BOOL
-#define BOOL int
-#endif
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include "tioerr.h"
+#include "tioplugin.h"
 
 #ifdef _MSC_VER
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <tchar.h>
@@ -57,11 +47,13 @@ enum SubscriptionType
 #define P9MDI_INFO_TYPE_STATS_BUYERS		7
 #define P9MDI_INFO_TYPE_STATS_SELLERS		8
 
+/*
 struct KEY_AND_VALUE
 {
 	const char* key;
 	const char* value;	
 };
+*/
 
 #define P9MDI_EVENT_SET					0x14
 #define P9MDI_EVENT_INSERT				0x15
@@ -106,6 +98,8 @@ typedef void (*GroupPropertyChangeCallback)(int /*result*/, void* /*handle*/, vo
 											const char* /*symbol*/, struct KEY_AND_VALUE* /*fields*/);
 
 typedef void(*DisconnectionCallback)(struct P9MDI_CONNECTION*);
+
+typedef void(*LogCallback)(const char*);
 
 
 
@@ -174,6 +168,12 @@ int p9mdi_query_instrument_properties(
 	MapChangeCallback map_change_callback,
 	void* cookie);
 
+int p9mdi_query_channel_properties(
+	struct P9MDI_CONNECTION* connection,
+	const char* exchange,
+	const char* channel_name,
+	MapChangeCallback map_change_callback);
+
 int p9mdi_set_subscribe_group_callback(
 	struct P9MDI_CONNECTION* connection, 
 	FieldChangeCallback properties_callback,
@@ -189,13 +189,15 @@ int p9mdi_subscribe_group(
 
 int p9mdi_unsubscribe(struct P9MDI_CONNECTION* connection, void* subscription_handle);
 
-int p9mdi_dispatch_pending_events(struct P9MDI_CONNECTION* connection, BOOL receive);
+int p9mdi_dispatch_pending_events(struct P9MDI_CONNECTION* connection, int receive);
 
 int p9mdi_set_asynchronous(struct P9MDI_CONNECTION* connection, DisconnectionCallback disconnect_callback);
 
 void p9mdi_log(const char* what);
 
-void p9mdi_enable_message_dump_to_log(BOOL yes_or_no);
+const char* p9mdi_version();
+
+void p9mdi_enable_message_dump_to_log(int yes_or_no);
 
 int p9mdi_test();
 
@@ -204,6 +206,8 @@ struct KEY_AND_VALUE* p9mdi_get_next_key_value_field(struct KEY_AND_VALUE* field
 int p9mdi_dispatch_pending_events_timeout(struct P9MDI_CONNECTION* connection, int timeout_in_seconds);
 
 int p9mdi_ping(struct P9MDI_CONNECTION* connection, char* payload);
+
+LogCallback p9mdi_set_log_callback(LogCallback log_callback);
 
 int p9mdi_get_last_error(struct P9MDI_CONNECTION* connection);
 
