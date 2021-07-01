@@ -42,6 +42,18 @@ type TradeChangeInfo struct {
 	Position             string
 }
 
+type BookChangeInfo struct {
+	Exchange, Symbol     string
+	Buyer, Seller        string
+	TradeId              string
+	Price                string
+	Quantity             string
+	NetChangePreviousDay string
+	Date                 string
+	Time                 string
+	Position             string
+}
+
 func LogTrace(format string, args ...interface{}) {
 	intelimarketclient.LogTrace(format, args...)
 }
@@ -107,6 +119,7 @@ type InteliMarketConnection struct {
 	port                  uint16
 	propertyChangeChannel chan PropertyChangeInfo
 	tradeChangeChannel    chan TradeChangeInfo
+	bookChangeChannel 	  chan BookChangeInfo
     chansize              int
 }
 
@@ -204,6 +217,10 @@ func (self *InteliMarketConnection) GetTradeChangeChannel() <-chan TradeChangeIn
 	return self.tradeChangeChannel
 }
 
+func (self *InteliMarketConnection) GetBookChangeChannel() <-chan BookChangeInfo {
+	return self.bookChangeChannel
+}
+
 func LogStats(event string) {
     var mem runtime.MemStats
     runtime.ReadMemStats(&mem)
@@ -233,6 +250,8 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 		LogStats("intelimarketclient::trade_channel_created")
 	self.propertyChangeChannel = make(chan PropertyChangeInfo, self.chansize)
 		LogStats("intelimarketclient::property_channel_created")
+	self.bookChangeChannel = make(chan BookChangeInfo, self.chansize)
+		LogStats("intelimarketclient::book_channel_created")
 		
 	return nil
 }
