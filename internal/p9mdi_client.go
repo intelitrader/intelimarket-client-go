@@ -174,6 +174,34 @@ func P9mdi_subscribe_instrument_trades(p9_connection *P9GoConnection, symbol str
 	}
 }
 
+func P9mdi_subscribe_instrument_order_book(p9_connection *P9GoConnection, symbol string, side int32, orderBookSize int32) {
+	LogTrace("P9mdi_subscribe_instrument_order_book: connectionId=%v, symbol=%v", p9_connection.connectionId, symbol)
+
+	c_exchange := C.CString("bvmf")
+	defer C.free(unsafe.Pointer(c_exchange))
+
+	c_symbol := C.CString(symbol)
+	defer C.free(unsafe.Pointer(c_symbol))
+
+	c_side := C.uint(side)
+	c_size := C.uint(orderBookSize)
+
+	var cookie uintptr = uintptr(p9_connection.connectionId)
+
+	result := C.p9mdi_subscribe_instrument_order_book(
+		p9_connection.c_connection,
+		c_exchange,
+		c_symbol,
+		c_side,
+		c_size,
+		(C.ListChangeCallback)(unsafe.Pointer(C.BookEntryCallback_cgo)),
+		(unsafe.Pointer)(cookie))
+
+	if result != 0 {
+		println("Error on set instrument order book callback")
+	}
+}
+
 func P9mdi_dispatch_pending_events(p9_connection *P9GoConnection, timeoutSeconds int) int {
 	result := C.p9mdi_dispatch_pending_events_timeout(p9_connection.c_connection, C.int(timeoutSeconds))
 	LogTrace("P9mdi_dispatch_pending_events_timeout: connectionId=%v, result=%v", p9_connection.connectionId, result)
