@@ -39,12 +39,16 @@ type PropertyCallback func(interface{}, uint32, string, string, string, string)
 // cookie, eventCode, exchange, symbol, position, key, value
 type TradeCallback func(interface{}, uint32, string, string, uint32, map[string]string)
 
+// cookie, eventCode, exchange, symbol, position, key, value
+type BookCallback func(interface{}, uint32, string, string, uint32, map[string]string)
+
 type P9GoConnection struct {
 	c_connection     *C.struct_P9MDI_CONNECTION
 	connectionId     uintptr
 	eventCookie      interface{}
 	propertyCallback PropertyCallback
 	tradeCallback    TradeCallback
+	bookCallback 	 BookCallback
 }
 
 //
@@ -57,7 +61,7 @@ type P9GoConnection struct {
 var g_lastConnectionId uintptr = 0
 var g_activeConnections = map[uintptr]P9GoConnection{}
 
-func P9mdi_connect(hostname string, port uint16, logpath string, propertyCallback PropertyCallback, tradeCallback TradeCallback, eventCookie interface{}) (*P9GoConnection, error) {
+func P9mdi_connect(hostname string, port uint16, logpath string, propertyCallback PropertyCallback, tradeCallback TradeCallback, bookCallback BookCallback, eventCookie interface{}) (*P9GoConnection, error) {
 	LogTrace("P9mdi_connect: hostname=%v, port=%v", hostname, port)
 	var cn *C.struct_P9MDI_CONNECTION
 
@@ -86,6 +90,7 @@ func P9mdi_connect(hostname string, port uint16, logpath string, propertyCallbac
 	p9_connection.eventCookie = eventCookie
 	p9_connection.propertyCallback = propertyCallback
 	p9_connection.tradeCallback = tradeCallback
+	p9_connection.bookCallback = bookCallback
 
 	g_activeConnections[g_lastConnectionId] = p9_connection
 
