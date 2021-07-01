@@ -10,9 +10,11 @@ package intelimarketclient
 
 void FieldChangeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, const char* key, char* value);
 void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position);
+void BookEntryCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position);
 
 void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, char* key, char* value);
 void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
+void bookEntryCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
 
 #cgo LDFLAGS: -L./bin -lp9mdi_client
 */
@@ -256,6 +258,45 @@ func tradeCallback_Go(
 		exchange,
 		symbol,
         position,
+		fields)
+
+	p9_connection.tradeCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
+}
+
+//export bookEntryCallback_Go
+func bookEntryCallback_Go(
+	errorCode int32,
+	handle unsafe.Pointer,
+	cookie unsafe.Pointer,
+	eventCode uint32,
+	c_exchange *C.char,
+	c_symbol *C.char,
+	position uint32,
+	c_fields *C.struct_KEY_AND_VALUE) {
+
+	exchange := C.GoString(c_exchange)
+	symbol := C.GoString(c_symbol)
+	key := "empty"
+	value := "empty"
+
+	connectionId := uintptr(cookie)
+	p9_connection := g_activeConnections[connectionId]
+
+	fields := make(map[string]string)
+
+	for ok := c_fields != nil; ok; ok = c_fields != nil {
+		key = C.GoString(c_fields.key)
+		value = C.GoString(c_fields.value)
+		fields[key] = value
+		c_fields = C.p9mdi_get_next_key_value_field(c_fields)
+	}
+
+	LogTrace("bookEntryCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, fields=%v",
+		p9_connection.connectionId,
+		eventCode,
+		exchange,
+		symbol,
+		position,
 		fields)
 
 	p9_connection.tradeCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
