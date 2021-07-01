@@ -155,6 +155,43 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
     }
 }
 
+func p9_OnBookCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
+	intelimarketConnection := eventCookie.(*InteliMarketConnection)
+
+	LogTrace("p9_OnBookCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
+
+	bookInfo := BookChangeInfo{}
+
+    bookInfo.Exchange = exchange
+    bookInfo.Symbol = symbol
+    bookInfo.Position = strconv.FormatUint(uint64(position), 10)
+
+	for k, v := range fields { 
+		switch k {
+		case "MDEntryBuyer":
+			bookInfo.Buyer = v
+		case "MDEntrySeller":
+			bookInfo.Seller = v
+		case "TradeID":
+			bookInfo.TradeId = v
+		case "MDEntryPx":
+			bookInfo.Price = v
+		case "MDEntrySize":
+			bookInfo.Quantity = v
+		case "NetChgPrevDay":
+			bookInfo.NetChangePreviousDay = v
+		case "MDEntryDate":
+			bookInfo.Date = v
+		case "MDEntryTime":
+			bookInfo.Time = v
+		}
+	}
+
+    if len(bookInfo.TradeId) > 0 {
+	    intelimarketConnection.bookChangeChannel <- bookInfo
+    }
+}
+
 func (self *InteliMarketConnection) String() string {
 	return fmt.Sprintf("<InteliMarketConnection %v:%v>", self.hostname, self.port)
 }
@@ -179,7 +216,7 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 	var err error
 
     LogStats("intelimarketclient::connecting")
-	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, logpath, p9_OnPropertyCallback, p9_OnTradeCallback, self)
+	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, logpath, p9_OnPropertyCallback, p9_OnTradeCallback, p9_OnBookCallback, self)
 	LogTrace("Connecting to %v:%v", server, port)
 
 	if err != nil {
