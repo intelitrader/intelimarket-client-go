@@ -344,3 +344,12 @@ func (self *InteliMarketConnection) SubscribeGroupTrades(groupName string, posit
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/trades", strings.ToLower(groupName))
 	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, -int32(int_position))
 }
+
+func (self *InteliMarketConnection) SubscribeGroupBook(groupName string) {
+	//
+	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
+	// (tudo que começa com __meta__/groups dentro do tio)
+	//
+	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/book", strings.ToLower(groupName))
+	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, 0)
+}
