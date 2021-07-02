@@ -173,6 +173,19 @@ func main() {
                     connection.SubscribeGroupProperties(symbol)
             }
         }
+		
+		if subscribeBook {
+            go BookToStdOut(connection.GetBookChangeChannel())
+            for _, symbol := range instruments {
+                PrintLogTrace(fmt.Sprintf("Subscribing book to %s", symbol))
+                connection.SubscribeInstrumentOrderBook(symbol, "1", "1") // BOOK_BUY
+                connection.SubscribeInstrumentOrderBook(symbol, "2", "1") // BOOK_SELL
+            }
+            for _, symbol := range groups {
+                PrintLogTrace(fmt.Sprintf("Subscribing book to group %s", symbol))
+                connection.SubscribeGroupBook(symbol)
+            }
+        }
 
 
         PrintLogTrace("Dispatching pending messages")
