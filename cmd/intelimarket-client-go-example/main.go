@@ -93,6 +93,7 @@ func main() {
     dispatchLoopPtr := flag.Int("dispatch-loop", 0, "how many dispatch loops before exit")
     subscribePropertiesPtr := flag.Bool("subscribe-properties", false, "subscribe properties")
     subscribeTradesPtr := flag.Bool("subscribe-trades", false, "subscribe trades")
+    subscribeBookPtr := flag.Bool("subscribe-book", false, "subscribe book")
     chansizePtr := flag.Int("chan-size", 1024, "how many allocated channels to each event channel")
 
     var groups arrayFlags
@@ -110,6 +111,7 @@ func main() {
     dispatchLoop := *dispatchLoopPtr
     subscribeProperties := *subscribePropertiesPtr
     subscribeTrades := *subscribeTradesPtr
+    subscribeBook := *subscribeBookPtr
     chansize := *chansizePtr
 
     g_verbose = *verbosePtr
