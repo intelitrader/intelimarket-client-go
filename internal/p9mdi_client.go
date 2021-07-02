@@ -332,5 +332,5 @@ func bookEntryCallback_Go(
 		position,
 		fields)
 
-	p9_connection.tradeCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
+	p9_connection.bookCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
 }
