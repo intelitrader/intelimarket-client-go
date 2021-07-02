@@ -71,6 +71,22 @@ func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
 	}
 }
 
+func BookToStdOut(channel <-chan intelimarketclient.BookChangeInfo) {
+
+    PrintLogTrace(fmt.Sprintf("BookToStdOut, reading %s", channel))
+
+    for {
+        info := <-channel
+        line := fmt.Sprintf("Book event: %s", info)
+        if g_verbose {
+            log.Println(line)
+        }
+        intelimarketclient.LogTrace(line)
+        g_bookCount += 1
+        Tick()
+    }
+}
+
 type arrayFlags []string
 
 func (i *arrayFlags) String() string {
