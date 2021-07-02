@@ -113,6 +113,18 @@ func (self TradeChangeInfo) String() string {
 	return ret
 }
 
+func (self BookChangeInfo) String() string {
+	ret := fmt.Sprintf("%v.%v -> %v<-->%v@%v -> %v",
+		self.Exchange,
+		self.Symbol,
+		self.Price,
+		self.Quantity,
+		self.Broker,
+		self.Position)
+
+	return ret
+}
+
 type InteliMarketConnection struct {
 	c_connection          *intelimarketclient.P9GoConnection
 	hostname              string
