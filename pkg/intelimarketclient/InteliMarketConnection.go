@@ -44,14 +44,14 @@ type TradeChangeInfo struct {
 
 type BookChangeInfo struct {
 	Exchange, Symbol     string
-	Buyer, Seller        string
-	TradeId              string
+	OrderId              string
+	Broker               string
 	Price                string
 	Quantity             string
-	NetChangePreviousDay string
 	Date                 string
 	Time                 string
 	Position             string
+	Side                 string
 }
 
 func LogTrace(format string, args ...interface{}) {
