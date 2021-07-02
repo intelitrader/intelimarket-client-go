@@ -15,6 +15,7 @@ import (
 var g_verbose bool = false
 var g_tradeCount int = 0
 var g_propertyCount int = 0
+var g_bookCount int = 0
 var g_lastTick time.Time = time.Now()
 
 func PrintLogTrace(line string) {
@@ -26,7 +27,7 @@ func LogStats() {
     var mem runtime.MemStats
     runtime.ReadMemStats(&mem)
     var mb = mem.HeapAlloc / 1024 / 1024
-    line := fmt.Sprintf("EVENTS: properties %d, trades %d, memory %dMB", g_propertyCount, g_tradeCount, mb)
+    line := fmt.Sprintf("EVENTS: properties %d, trades %d, book %d, memory %dMB", g_propertyCount, g_tradeCount, g_bookCount, mb)
     PrintLogTrace(line)
 }
 
