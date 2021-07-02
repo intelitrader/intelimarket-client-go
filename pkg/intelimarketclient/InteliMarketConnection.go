@@ -181,28 +181,25 @@ func p9_OnBookCallback(eventCookie interface{}, eventCode uint32, exchange strin
 
 	for k, v := range fields { 
 		switch k {
-		case "MDEntryBuyer":
-			bookInfo.Buyer = v
-		case "MDEntrySeller":
-			bookInfo.Seller = v
-		case "TradeID":
-			bookInfo.TradeId = v
+		case "OrderID":
+			bookInfo.OrderId = v
 		case "MDEntryPx":
 			bookInfo.Price = v
 		case "MDEntrySize":
 			bookInfo.Quantity = v
-		case "NetChgPrevDay":
-			bookInfo.NetChangePreviousDay = v
 		case "MDEntryDate":
 			bookInfo.Date = v
 		case "MDEntryTime":
 			bookInfo.Time = v
+		case "Broker":
+			bookInfo.Broker = v
+		case "Side":
+			bookInfo.Side = v
 		}
 	}
-
-    if len(bookInfo.TradeId) > 0 {
-	    intelimarketConnection.bookChangeChannel <- bookInfo
-    }
+	if len(bookInfo.OrderId) > 0 {
+		intelimarketConnection.bookChangeChannel <- bookInfo
+	}
 }
 
 func (self *InteliMarketConnection) String() string {
