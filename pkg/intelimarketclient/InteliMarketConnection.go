@@ -320,7 +320,6 @@ func (self *InteliMarketConnection) SubscribeInstrumentOrderBook(symbol string, 
 		LogStats("intelimarketclient::book_channel_created")
 	}
 
-	int_side, _ := strconv.ParseInt(side, 10, 32)
 	int_size, _ := strconv.ParseInt(orderBookSize, 10, 32)
 
 	intelimarketclient.P9mdi_subscribe_instrument_order_book(self.c_connection, symbol, 1, int32(int_size)) //BOOK_SIDE_BUY
