@@ -118,9 +118,9 @@ func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string, posi
 	C.p9mdi_set_subscribe_group_callback(
 		p9_connection.c_connection,
 		(C.FieldChangeCallback)(unsafe.Pointer(C.FieldChangeCallback_cgo)),
+		(C.ListChangeCallback)(unsafe.Pointer(C.BookEntryCallback_cgo)),
+		(C.ListChangeCallback)(unsafe.Pointer(C.BookEntryCallback_cgo)),
 		(C.ListChangeCallback)(unsafe.Pointer(C.TradeCallback_cgo)),
-		(C.ListChangeCallback)(unsafe.Pointer(C.BookEntryCallback_cgo)),
-		(C.ListChangeCallback)(unsafe.Pointer(C.BookEntryCallback_cgo)),
 		(unsafe.Pointer)(cookie))
 
 	C.p9mdi_subscribe_group(
