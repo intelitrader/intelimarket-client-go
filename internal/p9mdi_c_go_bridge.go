@@ -17,8 +17,7 @@ package intelimarketclient
 //
 void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, char* key, char* value);
 void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
-void bookBuyEntryCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
-void bookSellEntryCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
+void bookEntryCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
 
 
 //
@@ -35,14 +34,9 @@ void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned even
 	tradeCallback_Go(error_code, handle, cookie, eventCode, exchange, symbol, position, fields);
 }
 
-void BookBuyEntryCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields)
+void BookEntryCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields)
 {
-	bookBuyEntryCallback_Go(error_code, handle, cookie, eventCode, exchange, symbol, position, fields);
-}
-
-void BookSellEntryCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields)
-{
-	bookSellEntryCallback_Go(error_code, handle, cookie, eventCode, exchange, symbol, position, fields);
+	bookEntryCallback_Go(error_code, handle, cookie, eventCode, exchange, symbol, position, fields);
 }
 
 
