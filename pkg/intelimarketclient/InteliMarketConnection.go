@@ -314,7 +314,7 @@ func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, pos
 	intelimarketclient.P9mdi_subscribe_instrument_trades(self.c_connection, symbol, int32(int_position))
 }
 
-func (self *InteliMarketConnection) SubscribeInstrumentOrderBook(symbol string, side string, orderBookSize string) {
+func (self *InteliMarketConnection) SubscribeInstrumentOrderBook(symbol string, orderBookSize string) {
 	if self.bookChangeChannel == nil {
 		self.bookChangeChannel = make(chan BookChangeInfo, self.chansize)
 		LogStats("intelimarketclient::book_channel_created")
@@ -323,7 +323,8 @@ func (self *InteliMarketConnection) SubscribeInstrumentOrderBook(symbol string, 
 	int_side, _ := strconv.ParseInt(side, 10, 32)
 	int_size, _ := strconv.ParseInt(orderBookSize, 10, 32)
 
-	intelimarketclient.P9mdi_subscribe_instrument_order_book(self.c_connection, symbol, int32(int_side), int32(int_size))
+	intelimarketclient.P9mdi_subscribe_instrument_order_book(self.c_connection, symbol, 1, int32(int_size)) //BOOK_SIDE_BUY
+	intelimarketclient.P9mdi_subscribe_instrument_order_book(self.c_connection, symbol, 2, int32(int_size)) //BOOK_SIDE_SELL
 }
 
 func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
