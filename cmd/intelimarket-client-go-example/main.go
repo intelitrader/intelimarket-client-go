@@ -6,6 +6,7 @@ import (
     "fmt"
     "os"
     "runtime"
+    "strconv"
     "strings"
     "time"
 
@@ -110,6 +111,7 @@ func main() {
     subscribePropertiesPtr := flag.Bool("subscribe-properties", false, "subscribe properties")
     subscribeTradesPtr := flag.Bool("subscribe-trades", false, "subscribe trades")
     subscribeBookPtr := flag.Bool("subscribe-book", false, "subscribe book")
+    subscriptionTypePtr := flag.Int("subscription-type", 1, "subscription type when subscribing to book\noptions: Snapshot(0), Snapshot plus Incremental (1), Incremental (2)")
     chansizePtr := flag.Int("chan-size", 1024, "how many allocated channels to each event channel")
 
     var groups arrayFlags
@@ -128,6 +130,7 @@ func main() {
     subscribeProperties := *subscribePropertiesPtr
     subscribeTrades := *subscribeTradesPtr
     subscribeBook := *subscribeBookPtr
+    subscriptionType := strconv.Itoa(*subscriptionTypePtr)
     chansize := *chansizePtr
 
     g_verbose = *verbosePtr
@@ -178,7 +181,7 @@ func main() {
             go BookToStdOut(connection.GetBookChangeChannel())
             for _, symbol := range instruments {
                 PrintLogTrace(fmt.Sprintf("Subscribing book to %s", symbol))
-                connection.SubscribeInstrumentOrderBook(symbol, "1")
+                connection.SubscribeInstrumentOrderBook(symbol, subscriptionType)
             }
             for _, symbol := range groups {
                 PrintLogTrace(fmt.Sprintf("Subscribing book to group %s", symbol))
