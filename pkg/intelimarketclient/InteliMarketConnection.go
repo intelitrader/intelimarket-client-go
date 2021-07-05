@@ -2,9 +2,9 @@ package intelimarketclient
 
 import (
 	"fmt"
+	"runtime"
+	"strconv"
 	"strings"
-    "runtime"
-    "strconv"
 
 	intelimarketclient "bitbucket.org/intelitrader/intelimarket-client-go/internal"
 )
@@ -43,15 +43,15 @@ type TradeChangeInfo struct {
 }
 
 type BookChangeInfo struct {
-	Exchange, Symbol     string
-	OrderId              string
-	Broker               string
-	Price                string
-	Quantity             string
-	Date                 string
-	Time                 string
-	Position             string
-	Side                 string
+	Exchange, Symbol string
+	OrderId          string
+	Broker           string
+	Price            string
+	Quantity         string
+	Date             string
+	Time             string
+	Position         string
+	Side             string
 }
 
 func LogTrace(format string, args ...interface{}) {
@@ -108,7 +108,7 @@ func (self TradeChangeInfo) String() string {
 		self.Price,
 		self.Buyer,
 		self.Seller,
-        self.Position)
+		self.Position)
 
 	return ret
 }
@@ -131,8 +131,9 @@ type InteliMarketConnection struct {
 	port                  uint16
 	propertyChangeChannel chan PropertyChangeInfo
 	tradeChangeChannel    chan TradeChangeInfo
-	bookChangeChannel 	  chan BookChangeInfo
-    chansize              int
+	bookBuyChangeChannel  chan BookChangeInfo
+	bookSellChangeChannel chan BookChangeInfo
+	chansize              int
 }
 
 func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, key string, value string) {
@@ -150,11 +151,11 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
 
 	tradeInfo := TradeChangeInfo{}
 
-    tradeInfo.Exchange = exchange
-    tradeInfo.Symbol = symbol
-    tradeInfo.Position = strconv.FormatUint(uint64(position), 10)
+	tradeInfo.Exchange = exchange
+	tradeInfo.Symbol = symbol
+	tradeInfo.Position = strconv.FormatUint(uint64(position), 10)
 
-	for k, v := range fields { 
+	for k, v := range fields {
 		switch k {
 		case "MDEntryBuyer":
 			tradeInfo.Buyer = v
@@ -175,23 +176,23 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
 		}
 	}
 
-    if len(tradeInfo.TradeId) > 0 {
-	    intelimarketConnection.tradeChangeChannel <- tradeInfo
-    }
+	if len(tradeInfo.TradeId) > 0 {
+		intelimarketConnection.tradeChangeChannel <- tradeInfo
+	}
 }
 
-func p9_OnBookCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
+func p9_OnBookBuyCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
 	LogTrace("p9_OnBookCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
 
 	bookInfo := BookChangeInfo{}
 
-    bookInfo.Exchange = exchange
-    bookInfo.Symbol = symbol
-    bookInfo.Position = strconv.FormatUint(uint64(position), 10)
+	bookInfo.Exchange = exchange
+	bookInfo.Symbol = symbol
+	bookInfo.Position = strconv.FormatUint(uint64(position), 10)
 
-	for k, v := range fields { 
+	for k, v := range fields {
 		switch k {
 		case "OrderID":
 			bookInfo.OrderId = v
@@ -210,7 +211,41 @@ func p9_OnBookCallback(eventCookie interface{}, eventCode uint32, exchange strin
 		}
 	}
 	if len(bookInfo.OrderId) > 0 {
-		intelimarketConnection.bookChangeChannel <- bookInfo
+		intelimarketConnection.bookBuyChangeChannel <- bookInfo
+	}
+}
+
+func p9_OnBookSellCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
+	intelimarketConnection := eventCookie.(*InteliMarketConnection)
+
+	LogTrace("p9_OnBookCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
+
+	bookInfo := BookChangeInfo{}
+
+	bookInfo.Exchange = exchange
+	bookInfo.Symbol = symbol
+	bookInfo.Position = strconv.FormatUint(uint64(position), 10)
+
+	for k, v := range fields {
+		switch k {
+		case "OrderID":
+			bookInfo.OrderId = v
+		case "MDEntryPx":
+			bookInfo.Price = v
+		case "MDEntrySize":
+			bookInfo.Quantity = v
+		case "MDEntryDate":
+			bookInfo.Date = v
+		case "MDEntryTime":
+			bookInfo.Time = v
+		case "Broker":
+			bookInfo.Broker = v
+		case "Side":
+			bookInfo.Side = v
+		}
+	}
+	if len(bookInfo.OrderId) > 0 {
+		intelimarketConnection.bookSellChangeChannel <- bookInfo
 	}
 }
 
@@ -226,64 +261,70 @@ func (self *InteliMarketConnection) GetTradeChangeChannel() <-chan TradeChangeIn
 	return self.tradeChangeChannel
 }
 
-func (self *InteliMarketConnection) GetBookChangeChannel() <-chan BookChangeInfo {
-	return self.bookChangeChannel
+func (self *InteliMarketConnection) GetBookBuyChangeChannel() <-chan BookChangeInfo {
+	return self.bookBuyChangeChannel
+}
+
+func (self *InteliMarketConnection) GetBookSellChangeChannel() <-chan BookChangeInfo {
+	return self.bookSellChangeChannel
 }
 
 func LogStats(event string) {
-    var mem runtime.MemStats
-    runtime.ReadMemStats(&mem)
-    var mb = mem.TotalAlloc / 1024 / 1024
-    line := fmt.Sprintf("event: %s, memory %dMB", event, mb)
-    LogTrace(line)
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	var mb = mem.TotalAlloc / 1024 / 1024
+	line := fmt.Sprintf("event: %s, memory %dMB", event, mb)
+	LogTrace(line)
 }
 
 func (self *InteliMarketConnection) Connect(server string, port uint16, logpath string, chansize int) error {
 	var err error
 
-    LogStats("intelimarketclient::connecting")
-	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, logpath, p9_OnPropertyCallback, p9_OnTradeCallback, p9_OnBookCallback, self)
+	LogStats("intelimarketclient::connecting")
+	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, logpath, p9_OnPropertyCallback, p9_OnTradeCallback, p9_OnBookBuyCallback, p9_OnBookSellCallback, self)
 	LogTrace("Connecting to %v:%v", server, port)
 
 	if err != nil {
 		return err
 	}
 
-    LogStats("intelimarketclient::connected")
+	LogStats("intelimarketclient::connected")
 
 	self.hostname = server
 	self.port = port
-    self.chansize = chansize
+	self.chansize = chansize
 
 	self.tradeChangeChannel = make(chan TradeChangeInfo, self.chansize)
-		LogStats("intelimarketclient::trade_channel_created")
+	LogStats("intelimarketclient::trade_channel_created")
 	self.propertyChangeChannel = make(chan PropertyChangeInfo, self.chansize)
-		LogStats("intelimarketclient::property_channel_created")
-	self.bookChangeChannel = make(chan BookChangeInfo, self.chansize)
-		LogStats("intelimarketclient::book_channel_created")
-		
+	LogStats("intelimarketclient::property_channel_created")
+	self.bookBuyChangeChannel = make(chan BookChangeInfo, self.chansize)
+	LogStats("intelimarketclient::book_channel_created")
+	self.bookSellChangeChannel = make(chan BookChangeInfo, self.chansize)
+	LogStats("intelimarketclient::book_channel_created")
+
 	return nil
 }
 
 func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) (int, int) {
 	if self.c_connection != nil {
-        internalError := 0
-        LogStats("intelimarketclient::dispatching")
-        result := intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
-        internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
-        LogStats(fmt.Sprintf("intelimarketclient::dispatched (result %d, internal error %d)", result, internalError))
-        if result == -6 {
-            LogTrace("DispatchPendingMessage timeout; sending ping")
-            pingResult := intelimarketclient.P9mdi_ping(self.c_connection, "intelimarket-go")
-            if pingResult < 0 {
-                internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
-                return pingResult, internalError
-            }
-        }
-        return result, internalError
-    } else {
-        return -2, 0
-    }
+		internalError := 0
+		LogStats("intelimarketclient::dispatching")
+		result := intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
+		internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
+		LogStats(fmt.Sprintf("intelimarketclient::dispatched (result %d, internal error %d)", result, internalError))
+		if result == -6 {
+			LogTrace("DispatchPendingMessage timeout; sending ping")
+			pingResult := intelimarketclient.P9mdi_ping(self.c_connection, "intelimarket-go")
+			if pingResult < 0 {
+				internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
+				return pingResult, internalError
+			}
+		}
+		return result, internalError
+	} else {
+		return -2, 0
+	}
 }
 
 func (self *InteliMarketConnection) Disconnect() {
@@ -315,10 +356,6 @@ func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, pos
 }
 
 func (self *InteliMarketConnection) SubscribeInstrumentOrderBook(symbol string, side string, orderBookSize string) {
-	if self.bookChangeChannel == nil {
-		self.bookChangeChannel = make(chan BookChangeInfo, self.chansize)
-		LogStats("intelimarketclient::book_channel_created")
-	}
 
 	int_side, _ := strconv.ParseInt(side, 10, 32)
 	int_size, _ := strconv.ParseInt(orderBookSize, 10, 32)

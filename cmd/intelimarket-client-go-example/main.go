@@ -1,15 +1,15 @@
 package main
 
 import (
-	"log"
     "flag"
     "fmt"
+    "log"
     "os"
     "runtime"
     "strings"
     "time"
 
-	"bitbucket.org/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
+    "bitbucket.org/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
 )
 
 var g_verbose bool = false
@@ -43,8 +43,8 @@ func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
 
     PrintLogTrace(fmt.Sprintf("PropertyToStdOut, reading %s", channel))
 
-	for {
-		info := <-channel
+    for {
+        info := <-channel
         line := fmt.Sprintf("Property change: %s", info)
         if g_verbose {
             log.Println(line)
@@ -52,15 +52,15 @@ func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
         intelimarketclient.LogTrace(line)
         g_propertyCount += 1
         Tick()
-	}
+    }
 }
 
 func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
 
     PrintLogTrace(fmt.Sprintf("TradeToStdOut, reading %s", channel))
 
-	for {
-		info := <-channel
+    for {
+        info := <-channel
         line := fmt.Sprintf("Trade event: %s", info)
         if g_verbose {
             log.Println(line)
@@ -68,12 +68,28 @@ func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
         intelimarketclient.LogTrace(line)
         g_tradeCount += 1
         Tick()
-	}
+    }
 }
 
-func BookToStdOut(channel <-chan intelimarketclient.BookChangeInfo) {
+func BookBuyToStdOut(channel <-chan intelimarketclient.BookChangeInfo) {
 
-    PrintLogTrace(fmt.Sprintf("BookToStdOut, reading %s", channel))
+    PrintLogTrace(fmt.Sprintf("BookBuyToStdOut, reading %s", channel))
+
+    for {
+        info := <-channel
+        line := fmt.Sprintf("Book event: %s", info)
+        if g_verbose {
+            log.Println(line)
+        }
+        intelimarketclient.LogTrace(line)
+        g_bookCount += 1
+        Tick()
+    }
+}
+
+func BookSellToStdOut(channel <-chan intelimarketclient.BookChangeInfo) {
+
+    PrintLogTrace(fmt.Sprintf("BookSellToStdOut, reading %s", channel))
 
     for {
         info := <-channel
@@ -166,16 +182,17 @@ func main() {
             go PropertyToStdOut(connection.GetPropertyChangeChannel())
             for _, symbol := range instruments {
                 PrintLogTrace(fmt.Sprintf("Subscribing properties to %s", symbol))
-                    connection.SubscribeInstrumentProperties(symbol)
+                connection.SubscribeInstrumentProperties(symbol)
             }
             for _, symbol := range groups {
                 PrintLogTrace(fmt.Sprintf("Subscribing properties to group %s", symbol))
-                    connection.SubscribeGroupProperties(symbol)
+                connection.SubscribeGroupProperties(symbol)
             }
         }
-		
-		if subscribeBook {
-            go BookToStdOut(connection.GetBookChangeChannel())
+
+        if subscribeBook {
+            go BookBuyToStdOut(connection.GetBookBuyChangeChannel())
+            go BookSellToStdOut(connection.GetBookSellChangeChannel())
             for _, symbol := range instruments {
                 PrintLogTrace(fmt.Sprintf("Subscribing book to %s", symbol))
                 connection.SubscribeInstrumentOrderBook(symbol, "1", "1") // BOOK_BUY
@@ -186,7 +203,6 @@ func main() {
                 connection.SubscribeGroupBook(symbol)
             }
         }
-
 
         PrintLogTrace("Dispatching pending messages")
         for dloop := 0; dispatchLoop == 0 || dloop < dispatchLoop; dloop++ {
