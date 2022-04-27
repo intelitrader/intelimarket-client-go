@@ -24,6 +24,17 @@ const (
 	EventCodeSubscription uint = 0x66
 )
 
+const (
+	TIO_SUCCESS = 0
+	TIO_ERROR_GENERIC = -1
+	TIO_ERROR_NETWORK = -2
+	TIO_ERROR_PROTOCOL = -3
+	TIO_ERROR_MISSING_PARAMETER = -4
+	TIO_ERROR_NO_SUCH_OBJECT = -5
+	TIO_ERROR_TIMEOUT = -6
+	TIO_ERROR_OUT_OF_MEMORY = -7
+)
+
 type PropertyChangeInfo struct {
 	Exchange, Symbol string
 	EventCode        EventCode
@@ -265,6 +276,28 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 	return nil
 }
 
+/* A função DispatchPendingMessage é blocante e deve ser chamada em loop até o assinante desejar continuar
+recebendo eventos. Ela fica aguardando pelo número de segundos especificado no parâmetro timeoutSeconds 
+pelo recebimento de eventos. Ao finalizar o número de segundos especificado é retornado ao chamador 
+o status TIO_ERROR_TIMEOUT (-6).
+
+O erro mais comum retornado fora o timeout é o TIO_ERROR_NETWORK (-2), quando acontece um problema 
+de rede como perda de conexão.
+
+Junto do código de erro conhecido é fornecido um código de erro interno que está relacionado a
+chamadas de funções internas ou do sistema operacional. No caso de erros de rede, por exemplo,
+o erro interno irá conter um código que pode ser buscado na listagem de erros de rede do
+sistema operacional. No caso do Windows o erro será de winsock, mas no caso de Linux há
+casos que o erro interno não é significativo e irá conter lixo (não-implementado).
+
+Porém, há exemplos de uso em que o erro interno ocorrido junto de -2 foi 104, o que significa
+"Connection reset by peer", casos em que o InteliMarket fecha a conexão de um assinante que não
+respondeu aos eventos em tempo hábil para evitar consumo excessivo de recursos do lado servidor.
+
+Outro erro interno reportado é o código 4, ou "Interrupted system call" (EINTR), que significa
+que um signal foi disparado durante uma chamada em progresso. O cancelamento de uma operação
+de rede pode retornar este código.
+*/
 func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) (int, int) {
 	if self.c_connection != nil {
         internalError := 0
@@ -304,6 +337,18 @@ func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string)
 	intelimarketclient.P9mdi_subscribe_instrument_properties(self.c_connection, symbol)
 }
 
+/*
+A função SubscribeInstrumentTrades assina eventos de trade e permite receber eventos passados através 
+do parâmetro position. Esse parâmetro é chamado internamente de snapshotSize e significa a quantidade 
+de eventos que será entregue ao assinante antes dos eventos incrementais (o que seguem após a assinatura 
+ser concluída). Se passado 0 apenas os eventos incrementais serão repassados, o que chamamos internamente 
+de modo de assinatura IncrementalOnly. Se passado um valor diferente de 0 o modo de assinatura será 
+SnapshotPlusIncremental, onde os últimos position eventos antes dos eventos incrementais serão 
+repassados ao assinante.
+
+Note que o parâmetro position está implementado apenas para assinatura de instrumentos,
+sendo ignorado na função SubscribeGroupTrades.
+*/
 func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, position string) {
 	if self.tradeChangeChannel == nil {
 		self.tradeChangeChannel = make(chan TradeChangeInfo, self.chansize)
@@ -335,6 +380,12 @@ func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
 	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, 0)
 }
 
+/*
+A função SubscribeGroupTrades assina eventos de trade de um grupo de instrumentos.
+
+Note que o parâmetro position está implementado apenas para assinatura de instrumentos 
+em SubscribeInstrumentTrades e é ignorado nesta função.
+*/
 func (self *InteliMarketConnection) SubscribeGroupTrades(groupName string, position string) {
 	//
 	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
