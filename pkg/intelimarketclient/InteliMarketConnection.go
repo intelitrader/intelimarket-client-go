@@ -24,14 +24,39 @@ const (
 	EventCodeSubscription uint = 0x66
 )
 
+//
+// Códigos de erro do uso da lib InteliMarket/Tio.
+//
+// Esses códigos são gerados internamentes pela lib. Algumas APIs possuem o retorno
+// desses códigos mais um código de erro interno. O erro interno se refere a chamadas
+// do sistema operacional ou chamadas internas não-documentadas nesta lib.
+//
+// Para verificar o comportamento de determinada operação que retorne um código de erro
+// interno consultar a seguinte documentação:
+//
+// Se estiver executando a lib em ambiente Windows:
+//  - System Error Codes (ref https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-)
+//  - Windows Sockets Error Codes (ref https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2)
+//
+// Se estiver executando a lib em ambiente Linux/UNIX:
+//  - Man errno ou Linux Error Codes for C Programming Language (ref https://www.thegeekstuff.com/2010/10/linux-error-codes/)
+//
 const (
+  // Sucesso ao realizar a operação.
 	TIO_SUCCESS = 0
+  // Erro ao realizar a operação.
 	TIO_ERROR_GENERIC = -1
+  // Erro de rede.
 	TIO_ERROR_NETWORK = -2
+  // Erro de protocolo.
 	TIO_ERROR_PROTOCOL = -3
+  // Faltando parâmetro na operação.
 	TIO_ERROR_MISSING_PARAMETER = -4
+  // Objeto não encontrado.
 	TIO_ERROR_NO_SUCH_OBJECT = -5
+  // Timeout ao realizar a operação.
 	TIO_ERROR_TIMEOUT = -6
+  // Memória não disponível para continuar operação.
 	TIO_ERROR_OUT_OF_MEMORY = -7
 )
 
@@ -345,9 +370,6 @@ ser concluída). Se passado 0 apenas os eventos incrementais serão repassados, 
 de modo de assinatura IncrementalOnly. Se passado um valor diferente de 0 o modo de assinatura será 
 SnapshotPlusIncremental, onde os últimos position eventos antes dos eventos incrementais serão 
 repassados ao assinante.
-
-Note que o parâmetro position está implementado apenas para assinatura de instrumentos,
-sendo ignorado na função SubscribeGroupTrades.
 */
 func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, position string) {
 	if self.tradeChangeChannel == nil {
@@ -381,10 +403,18 @@ func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
 }
 
 /*
-A função SubscribeGroupTrades assina eventos de trade de um grupo de instrumentos.
+A função SubscribeGroupTrades assina eventos de trade de um grupo de instrumentos e permite receber 
+eventos passados através do parâmetro position. Esse parâmetro é chamado internamente de snapshotSize 
+e significa a quantidade de eventos que será entregue ao assinante antes dos eventos incrementais 
+(o que seguem após a assinatura ser concluída). Se passado 0 todos os eventos antes dos incrementais serão 
+repassados. Se passado um valor maior que 0 os últimos position eventos antes dos eventos incrementais serão 
+repassados ao assinante.
 
-Note que o parâmetro position está implementado apenas para assinatura de instrumentos 
-em SubscribeInstrumentTrades e é ignorado nesta função.
+Note que o parâmetro position para assinatura de grupos se refere aos eventos dos instrumentos 
+individualmente, e não em conjunto. Por exemplo, se for usado um position 100 serão enviados os útimos 100
+eventos para cada instrumento pertencente ao grupo assinado. Caso um instrumento não possua essa quantidade
+de eventos serão enviados menos eventos. Caso um instrumento possua mais eventos que essa quantidade
+serão enviados no máximo os últimos 100 eventos.
 */
 func (self *InteliMarketConnection) SubscribeGroupTrades(groupName string, position string) {
 	//
