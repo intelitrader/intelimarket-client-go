@@ -10,7 +10,7 @@ import (
     "strings"
     "time"
 
-	"bitbucket.org/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
+	"github.com/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
 )
 
 var g_verbose bool = false

@@ -5,7 +5,7 @@ import (
 	"log"
 	"sort"
 
-	"bitbucket.org/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
+	"github.com/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
 )
 
 type instrumentStats struct {

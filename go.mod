@@ -1,3 +1,3 @@
-module bitbucket.org/intelitrader/intelimarket-client-go
+module github.com/intelitrader/intelimarket-client-go
 
 go 1.13

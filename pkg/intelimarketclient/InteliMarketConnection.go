@@ -6,7 +6,7 @@ import (
     "runtime"
     "strconv"
 
-	intelimarketclient "bitbucket.org/intelitrader/intelimarket-client-go/internal"
+	intelimarketclient "github.com/intelitrader/intelimarket-client-go/internal"
 )
 
 type EventCode = uint
