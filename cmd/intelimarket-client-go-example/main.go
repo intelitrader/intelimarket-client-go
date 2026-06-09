@@ -192,13 +192,13 @@ func main() {
 
         PrintLogTrace("Dispatching pending messages (async mode)")
         for dloop := 0; dispatchLoop == 0 || dloop < dispatchLoop; dloop++ {
-			Tick()
-			time.Sleep(1 * time.Second)
-			if g_verbose {
-				PrintLogTrace(fmt.Sprintf("Dispatch #%d (async sleep)", dloop))
-				LogStats()
-			}
+            Tick()
+            time.Sleep(1 * time.Second)
+            if g_verbose {
+                PrintLogTrace(fmt.Sprintf("Dispatch #%d (async sleep)", dloop))
+                LogStats()
             }
+        }
 
         if connected {
             PrintLogTrace("Dispatch loop done and still connected; disconnecting")
