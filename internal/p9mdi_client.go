@@ -9,8 +9,8 @@ package intelimarketclient
 //
 
 void FieldChangeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, const char* key, char* value);
-void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position);
-void BookEntryCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position);
+void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
+void BookEntryCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
 
 void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, char* key, char* value);
 void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
@@ -207,6 +207,10 @@ func P9mdi_subscribe_instrument_order_book(p9_connection *P9GoConnection, symbol
 	}
 }
 
+
+func P9mdi_set_asynchronous(p9_connection *P9GoConnection) {
+	C.p9mdi_set_asynchronous(p9_connection.c_connection, nil)
+}
 func P9mdi_dispatch_pending_events(p9_connection *P9GoConnection, timeoutSeconds int) int {
 	result := C.p9mdi_dispatch_pending_events_timeout(p9_connection.c_connection, C.int(timeoutSeconds))
 	LogTrace("P9mdi_dispatch_pending_events_timeout: connectionId=%v, result=%v", p9_connection.connectionId, result)

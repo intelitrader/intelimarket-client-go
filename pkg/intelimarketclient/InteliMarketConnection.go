@@ -286,6 +286,7 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 	}
 
     LogStats("intelimarketclient::connected")
+	intelimarketclient.P9mdi_set_asynchronous(self.c_connection)
 
 	self.hostname = server
 	self.port = port

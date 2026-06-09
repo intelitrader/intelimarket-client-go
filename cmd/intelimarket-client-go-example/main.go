@@ -190,20 +190,15 @@ func main() {
         }
 
 
-        PrintLogTrace("Dispatching pending messages")
+        PrintLogTrace("Dispatching pending messages (async mode)")
         for dloop := 0; dispatchLoop == 0 || dloop < dispatchLoop; dloop++ {
-            result, internalError := connection.DispatchPendingMessage(timeout)
-            if g_verbose {
-                PrintLogTrace(fmt.Sprintf("Dispatch #%d result %d (internal error %d)", dloop, result, internalError))
-                LogStats()
+			Tick()
+			time.Sleep(1 * time.Second)
+			if g_verbose {
+				PrintLogTrace(fmt.Sprintf("Dispatch #%d (async sleep)", dloop))
+				LogStats()
+			}
             }
-            if result == -2 {
-                PrintLogTrace(fmt.Sprintf("NETWORK ERROR (internal error %d); reconnecting", internalError))
-                connection.Disconnect()
-                connected = false
-                break
-            }
-        }
 
         if connected {
             PrintLogTrace("Dispatch loop done and still connected; disconnecting")
