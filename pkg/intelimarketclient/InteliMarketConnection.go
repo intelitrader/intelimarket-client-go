@@ -174,7 +174,7 @@ type InteliMarketConnection struct {
 func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, key string, value string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	LogTrace("p9_OnPropertyCallback", intelimarketConnection, symbol, key, value)
+	//LogTrace("p9_OnPropertyCallback", intelimarketConnection, symbol, key, value)
 
 	intelimarketConnection.propertyChangeChannel <- PropertyChangeInfo{exchange, symbol, EventCode(eventCode), key, value}
 }
@@ -182,7 +182,7 @@ func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange s
 func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	LogTrace("p9_OnTradeCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
+	//LogTrace("p9_OnTradeCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
 
 	tradeInfo := TradeChangeInfo{}
 
@@ -219,7 +219,7 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
 func p9_OnBookCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	LogTrace("p9_OnBookCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
+	//LogTrace("p9_OnBookCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
 
 	bookInfo := BookChangeInfo{}
 
@@ -326,10 +326,10 @@ de rede pode retornar este código.
 func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) (int, int) {
 	if self.c_connection != nil {
         internalError := 0
-        LogStats("intelimarketclient::dispatching")
+		//LogStats("intelimarketclient::dispatching")
         result := intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
         internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
-        LogStats(fmt.Sprintf("intelimarketclient::dispatched (result %d, internal error %d)", result, internalError))
+		//LogStats(fmt.Sprintf("intelimarketclient::dispatched (result %d, internal error %d)", result, internalError))
         if result == -6 {
             LogTrace("DispatchPendingMessage timeout; sending ping")
             pingResult := intelimarketclient.P9mdi_ping(self.c_connection, "intelimarket-go")
