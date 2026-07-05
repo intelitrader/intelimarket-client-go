@@ -16,3 +16,4 @@ Essa biblioteca é um binding que usa a lib da Intelitrader feita em C (p9mdi_cl
 
 # Exemplo de código
 Veja em `cmd/intelimarket-client-go-example`
+# teste
