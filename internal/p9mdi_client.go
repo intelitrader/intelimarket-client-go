@@ -226,7 +226,7 @@ func P9mdi_subscribe_instrument_order_book(p9_connection *P9GoConnection, symbol
 
 func P9mdi_dispatch_pending_events(p9_connection *P9GoConnection, timeoutSeconds int) int {
 	result := C.p9mdi_dispatch_pending_events_timeout(p9_connection.c_connection, C.int(timeoutSeconds))
-	LogTrace("P9mdi_dispatch_pending_events_timeout: connectionId=%v, result=%v", p9_connection.connectionId, result)
+	//LogTrace("P9mdi_dispatch_pending_events_timeout: connectionId=%v, result=%v", p9_connection.connectionId, result)
     return int(result)
 }
 
@@ -262,6 +262,7 @@ func fieldChangeCallback_Go(
 	connectionId := uintptr(cookie)
 	p9_connection := g_activeConnections[connectionId]
 
+	/*
 	LogTrace("fieldChangeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, key=%v, value=%v",
 		p9_connection.connectionId,
 		eventCode,
@@ -269,6 +270,7 @@ func fieldChangeCallback_Go(
 		symbol,
 		key,
 		value)
+	*/
 
 	p9_connection.propertyCallback(p9_connection.eventCookie, eventCode, exchange, symbol, key, value)
 }
@@ -302,6 +304,7 @@ func tradeCallback_Go(
         c_fields = C.p9mdi_get_next_key_value_field(c_fields)
     }
 
+	/*
 	LogTrace("tradeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, fields=%v",
 		p9_connection.connectionId,
 		eventCode,
@@ -309,6 +312,7 @@ func tradeCallback_Go(
 		symbol,
         position,
 		fields)
+	*/
 
 	p9_connection.tradeCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
 }
@@ -341,6 +345,7 @@ func bookEntryCallback_Go(
 		c_fields = C.p9mdi_get_next_key_value_field(c_fields)
 	}
 
+	/*
 	LogTrace("bookEntryCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, fields=%v",
 		p9_connection.connectionId,
 		eventCode,
@@ -348,6 +353,7 @@ func bookEntryCallback_Go(
 		symbol,
 		position,
 		fields)
+	*/
 
 	p9_connection.bookCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
 }
