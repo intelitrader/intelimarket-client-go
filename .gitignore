@@ -3,3 +3,5 @@
 cmd/intelimarket-client-go-example/intelimarket-client-go-example
 cmd/intelimarket-client-go-example/intelimarket-client-go-example.exe
 *.log
+venv/**
+.vscode/**
