@@ -269,7 +269,6 @@ func (self *InteliMarketConnection) GetBookChangeChannel() <-chan BookChangeInfo
 }
 
 // Disconnected returns a channel that is closed when the connection is lost.
-// This only works when the library is in asynchronous mode (the default since Connect).
 func (self *InteliMarketConnection) Disconnected() <-chan struct{} {
 	return self.disconnected
 }
@@ -299,15 +298,11 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 	self.port = port
 	self.disconnected = make(chan struct{})
 
-	if err := intelimarketclient.P9mdi_set_asynchronous(self.c_connection, func(c *intelimarketclient.P9GoConnection) {
+	intelimarketclient.P9mdi_set_asynchronous(self.c_connection, func(c *intelimarketclient.P9GoConnection) {
 		LogTrace("InteliMarketConnection: disconnected %v:%v", self.hostname, self.port)
 		self.c_connection = nil
 		close(self.disconnected)
-	}); err != nil {
-		intelimarketclient.P9mdi_disconnect(self.c_connection)
-		self.c_connection = nil
-		return err
-	}
+	})
 	LogTrace("Asynchronous mode enabled")
 
 	self.tradeChangeChannel = make(chan TradeChangeInfo, DefaultChannelSize)

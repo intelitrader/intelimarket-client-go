@@ -115,18 +115,12 @@ func P9mdi_disconnect(p9_connection *P9GoConnection) {
 	}
 }
 
-func P9mdi_set_asynchronous(p9_connection *P9GoConnection, callback DisconnectionCallback) error {
+func P9mdi_set_asynchronous(p9_connection *P9GoConnection, callback DisconnectionCallback) {
 	LogTrace("P9mdi_set_asynchronous: connectionId=%v", p9_connection.connectionId)
 	p9_connection.disconnectionCallback = callback
-
-	result := C.p9mdi_set_asynchronous(
+	C.p9mdi_set_asynchronous(
 		p9_connection.c_connection,
 		(C.DisconnectionCallback)(unsafe.Pointer(C.DisconnectionCallback_cgo)))
-
-	if result != 0 {
-		return fmt.Errorf("p9mdi_set_asynchronous failed with code %d", result)
-	}
-	return nil
 }
 
 func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string, position int32) {
