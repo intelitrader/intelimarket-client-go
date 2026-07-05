@@ -24,6 +24,8 @@ const (
 	EventCodeSubscription uint = 0x66
 )
 
+const DefaultChannelSize = 1024
+
 //
 // Códigos de erro do uso da lib InteliMarket/Tio.
 //
@@ -167,8 +169,8 @@ type InteliMarketConnection struct {
 	port                  uint16
 	propertyChangeChannel chan PropertyChangeInfo
 	tradeChangeChannel    chan TradeChangeInfo
-	bookChangeChannel 	  chan BookChangeInfo
-    chansize              int
+	bookChangeChannel     chan BookChangeInfo
+	disconnected          chan struct{}
 }
 
 func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, key string, value string) {
@@ -266,6 +268,12 @@ func (self *InteliMarketConnection) GetBookChangeChannel() <-chan BookChangeInfo
 	return self.bookChangeChannel
 }
 
+// Disconnected returns a channel that is closed when the connection is lost.
+// This only works when the library is in asynchronous mode (the default since Connect).
+func (self *InteliMarketConnection) Disconnected() <-chan struct{} {
+	return self.disconnected
+}
+
 func LogStats(event string) {
     var mem runtime.MemStats
     runtime.ReadMemStats(&mem)
@@ -274,10 +282,10 @@ func LogStats(event string) {
     LogTrace(line)
 }
 
-func (self *InteliMarketConnection) Connect(server string, port uint16, logpath string, chansize int) error {
+func (self *InteliMarketConnection) Connect(server string, port uint16, logpath string) error {
 	var err error
 
-    LogStats("intelimarketclient::connecting")
+	LogStats("intelimarketclient::connecting")
 	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, logpath, p9_OnPropertyCallback, p9_OnTradeCallback, p9_OnBookCallback, self)
 	LogTrace("Connecting to %v:%v", server, port)
 
@@ -285,25 +293,37 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 		return err
 	}
 
-    LogStats("intelimarketclient::connected")
+	LogStats("intelimarketclient::connected")
 
 	self.hostname = server
 	self.port = port
-    self.chansize = chansize
+	self.disconnected = make(chan struct{})
 
-	self.tradeChangeChannel = make(chan TradeChangeInfo, self.chansize)
-		LogStats("intelimarketclient::trade_channel_created")
-	self.propertyChangeChannel = make(chan PropertyChangeInfo, self.chansize)
-		LogStats("intelimarketclient::property_channel_created")
-	self.bookChangeChannel = make(chan BookChangeInfo, self.chansize)
-		LogStats("intelimarketclient::book_channel_created")
-		
+	if err := intelimarketclient.P9mdi_set_asynchronous(self.c_connection, func(c *intelimarketclient.P9GoConnection) {
+		LogTrace("InteliMarketConnection: disconnected %v:%v", self.hostname, self.port)
+		self.c_connection = nil
+		close(self.disconnected)
+	}); err != nil {
+		intelimarketclient.P9mdi_disconnect(self.c_connection)
+		self.c_connection = nil
+		return err
+	}
+	LogTrace("Asynchronous mode enabled")
+
+	self.tradeChangeChannel = make(chan TradeChangeInfo, DefaultChannelSize)
+	LogStats("intelimarketclient::trade_channel_created")
+	self.propertyChangeChannel = make(chan PropertyChangeInfo, DefaultChannelSize)
+	LogStats("intelimarketclient::property_channel_created")
+	self.bookChangeChannel = make(chan BookChangeInfo, DefaultChannelSize)
+	LogStats("intelimarketclient::book_channel_created")
+
 	return nil
 }
 
-/* A função DispatchPendingMessage é blocante e deve ser chamada em loop até o assinante desejar continuar
-recebendo eventos. Ela fica aguardando pelo número de segundos especificado no parâmetro timeoutSeconds 
-pelo recebimento de eventos. Ao finalizar o número de segundos especificado é retornado ao chamador 
+/* A função DispatchPendingMessage é blocante e deve ser chamada em loop quando a conexão estiver em
+modo síncrono. Desde que Connect habilita o modo assíncrono por padrão, essa função não precisa ser
+chamada normalmente. Ela fica aguardando pelo número de segundos especificado no parâmetro timeoutSeconds
+pelo recebimento de eventos. Ao finalizar o número de segundos especificado é retornado ao chamador
 o status TIO_ERROR_TIMEOUT (-6).
 
 O erro mais comum retornado fora o timeout é o TIO_ERROR_NETWORK (-2), quando acontece um problema 
@@ -326,10 +346,10 @@ de rede pode retornar este código.
 func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) (int, int) {
 	if self.c_connection != nil {
         internalError := 0
-        LogStats("intelimarketclient::dispatching")
+		LogStats("intelimarketclient::dispatching")
         result := intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
         internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
-        LogStats(fmt.Sprintf("intelimarketclient::dispatched (result %d, internal error %d)", result, internalError))
+		LogStats(fmt.Sprintf("intelimarketclient::dispatched (result %d, internal error %d)", result, internalError))
         if result == -6 {
             LogTrace("DispatchPendingMessage timeout; sending ping")
             pingResult := intelimarketclient.P9mdi_ping(self.c_connection, "intelimarket-go")
@@ -355,7 +375,7 @@ func (self *InteliMarketConnection) Disconnect() {
 
 func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string) {
 	if self.propertyChangeChannel == nil {
-		self.propertyChangeChannel = make(chan PropertyChangeInfo, self.chansize)
+		self.propertyChangeChannel = make(chan PropertyChangeInfo, DefaultChannelSize)
 		LogStats("intelimarketclient::property_channel_created")
 	}
 
@@ -373,7 +393,7 @@ repassados ao assinante.
 */
 func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, position string) {
 	if self.tradeChangeChannel == nil {
-		self.tradeChangeChannel = make(chan TradeChangeInfo, self.chansize)
+		self.tradeChangeChannel = make(chan TradeChangeInfo, DefaultChannelSize)
 		LogStats("intelimarketclient::trade_channel_created")
 	}
 
@@ -383,7 +403,7 @@ func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, pos
 
 func (self *InteliMarketConnection) SubscribeInstrumentOrderBook(symbol string, orderBookSize string) {
 	if self.bookChangeChannel == nil {
-		self.bookChangeChannel = make(chan BookChangeInfo, self.chansize)
+		self.bookChangeChannel = make(chan BookChangeInfo, DefaultChannelSize)
 		LogStats("intelimarketclient::book_channel_created")
 	}
 

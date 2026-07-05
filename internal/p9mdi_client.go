@@ -11,10 +11,12 @@ package intelimarketclient
 void FieldChangeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, const char* key, char* value);
 void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position);
 void BookEntryCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, const char* exchange, const char* symbol, unsigned position);
+void DisconnectionCallback_cgo(struct P9MDI_CONNECTION* connection);
 
 void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, char* key, char* value);
 void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
 void bookEntryCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
+void disconnectionCallback_Go(struct P9MDI_CONNECTION* connection);
 
 #cgo LDFLAGS: -L./bin -lp9mdi_client
 */
@@ -42,13 +44,16 @@ type TradeCallback func(interface{}, uint32, string, string, uint32, map[string]
 // cookie, eventCode, exchange, symbol, position, key, value
 type BookCallback func(interface{}, uint32, string, string, uint32, map[string]string)
 
+type DisconnectionCallback func(*P9GoConnection)
+
 type P9GoConnection struct {
-	c_connection     *C.struct_P9MDI_CONNECTION
-	connectionId     uintptr
-	eventCookie      interface{}
-	propertyCallback PropertyCallback
-	tradeCallback    TradeCallback
-	bookCallback 	 BookCallback
+	c_connection          *C.struct_P9MDI_CONNECTION
+	connectionId          uintptr
+	eventCookie           interface{}
+	propertyCallback      PropertyCallback
+	tradeCallback         TradeCallback
+	bookCallback          BookCallback
+	disconnectionCallback DisconnectionCallback
 }
 
 //
@@ -60,6 +65,7 @@ type P9GoConnection struct {
 //
 var g_lastConnectionId uintptr = 0
 var g_activeConnections = map[uintptr]P9GoConnection{}
+var g_connectionsByHandle = map[*C.struct_P9MDI_CONNECTION]uintptr{}
 
 func P9mdi_connect(hostname string, port uint16, logpath string, propertyCallback PropertyCallback, tradeCallback TradeCallback, bookCallback BookCallback, eventCookie interface{}) (*P9GoConnection, error) {
 	LogTrace("P9mdi_connect: hostname=%v, port=%v", hostname, port)
@@ -93,6 +99,7 @@ func P9mdi_connect(hostname string, port uint16, logpath string, propertyCallbac
 	p9_connection.bookCallback = bookCallback
 
 	g_activeConnections[g_lastConnectionId] = p9_connection
+	g_connectionsByHandle[cn] = p9_connection.connectionId
 
 	LogTrace("P9mdi_connect: CONNECTED hostname=%v, port=%v, connectionId=%v", hostname, port, p9_connection.connectionId)
 
@@ -101,9 +108,25 @@ func P9mdi_connect(hostname string, port uint16, logpath string, propertyCallbac
 
 func P9mdi_disconnect(p9_connection *P9GoConnection) {
 	LogTrace("P9mdi_disconnect: connectionId=%v", p9_connection.connectionId)
-	C.p9mdi_disconnect(p9_connection.c_connection)
+	if p9_connection.c_connection != nil {
+		delete(g_connectionsByHandle, p9_connection.c_connection)
+		C.p9mdi_disconnect(p9_connection.c_connection)
+		p9_connection.c_connection = nil
+	}
+}
 
-	p9_connection.c_connection = nil
+func P9mdi_set_asynchronous(p9_connection *P9GoConnection, callback DisconnectionCallback) error {
+	LogTrace("P9mdi_set_asynchronous: connectionId=%v", p9_connection.connectionId)
+	p9_connection.disconnectionCallback = callback
+
+	result := C.p9mdi_set_asynchronous(
+		p9_connection.c_connection,
+		(C.DisconnectionCallback)(unsafe.Pointer(C.DisconnectionCallback_cgo)))
+
+	if result != 0 {
+		return fmt.Errorf("p9mdi_set_asynchronous failed with code %d", result)
+	}
+	return nil
 }
 
 func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string, position int32) {
@@ -333,4 +356,22 @@ func bookEntryCallback_Go(
 		fields)
 
 	p9_connection.bookCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
+}
+
+//export disconnectionCallback_Go
+func disconnectionCallback_Go(handle *C.struct_P9MDI_CONNECTION) {
+	connectionId, ok := g_connectionsByHandle[handle]
+	if !ok {
+		return
+	}
+	p9_connection := g_activeConnections[connectionId]
+
+	LogTrace("disconnectionCallback_Go: connectionId=%v", p9_connection.connectionId)
+
+	if p9_connection.disconnectionCallback != nil {
+		p9_connection.disconnectionCallback(&p9_connection)
+	}
+
+	p9_connection.c_connection = nil
+	delete(g_connectionsByHandle, handle)
 }

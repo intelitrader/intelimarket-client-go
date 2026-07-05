@@ -5,9 +5,11 @@ import (
     "flag"
     "fmt"
     "os"
+    "os/signal"
     "runtime"
     "strconv"
     "strings"
+    "syscall"
     "time"
 
 	"github.com/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
@@ -107,12 +109,10 @@ func main() {
     snapshotSizePtr := flag.String("snapshot-size", "0", "how many past events")
     timeoutPtr := flag.Int("timeout", 10, "timeout in seconds")
     verbosePtr := flag.Bool("verbose", false, "verbose output")
-    dispatchLoopPtr := flag.Int("dispatch-loop", 0, "how many dispatch loops before exit")
     subscribePropertiesPtr := flag.Bool("subscribe-properties", false, "subscribe properties")
     subscribeTradesPtr := flag.Bool("subscribe-trades", false, "subscribe trades")
     subscribeBookPtr := flag.Bool("subscribe-book", false, "subscribe book")
     subscriptionBookTypePtr := flag.Int("subscription-book-type", 1, "subscription type when subscribing to book\noptions: Snapshot(0), Snapshot plus Incremental (1), Incremental (2)")
-    chansizePtr := flag.Int("chan-size", 1024, "how many allocated channels to each event channel")
 
     var groups arrayFlags
     flag.Var(&groups, "group", "group(s)")
@@ -126,12 +126,10 @@ func main() {
     logpath := *logpathPtr
     snapshotSize := *snapshotSizePtr
     timeout := *timeoutPtr
-    dispatchLoop := *dispatchLoopPtr
     subscribeProperties := *subscribePropertiesPtr
     subscribeTrades := *subscribeTradesPtr
     subscribeBook := *subscribeBookPtr
     subscriptionBookType := strconv.Itoa(*subscriptionBookTypePtr)
-    chansize := *chansizePtr
 
     g_verbose = *verbosePtr
 
@@ -140,7 +138,7 @@ func main() {
 
         for {
             log.Printf("Connecting to %s:%d\n", server, port)
-            err := connection.Connect(server, port, logpath, chansize)
+            err := connection.Connect(server, port, logpath)
             if err == nil {
                 break
             }
@@ -148,7 +146,6 @@ func main() {
             time.Sleep(time.Duration(timeout) * time.Second)
         }
 
-        var connected = true
         log.Println("Connected!")
         PrintLogTrace(strings.Join(os.Args, " "))
         LogStats()
@@ -190,24 +187,17 @@ func main() {
         }
 
 
-        PrintLogTrace("Dispatching pending messages")
-        for dloop := 0; dispatchLoop == 0 || dloop < dispatchLoop; dloop++ {
-            result, internalError := connection.DispatchPendingMessage(timeout)
-            if g_verbose {
-                PrintLogTrace(fmt.Sprintf("Dispatch #%d result %d (internal error %d)", dloop, result, internalError))
-                LogStats()
-            }
-            if result == -2 {
-                PrintLogTrace(fmt.Sprintf("NETWORK ERROR (internal error %d); reconnecting", internalError))
-                connection.Disconnect()
-                connected = false
-                break
-            }
-        }
+        PrintLogTrace("Waiting for events")
+        sigCh := make(chan os.Signal, 1)
+        signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-        if connected {
-            PrintLogTrace("Dispatch loop done and still connected; disconnecting")
+        select {
+        case <-connection.Disconnected():
+            PrintLogTrace("Disconnected; reconnecting")
+        case <-sigCh:
+            PrintLogTrace("Signal received; disconnecting")
             connection.Disconnect()
+            return
         }
     }
 }
