@@ -33,6 +33,13 @@ jobs:
           master_head=$(git rev-parse origin/master)
           echo "Current origin/master HEAD: $master_head"
 
+          # First check: the branch must descend from the current master.
+          if ! git merge-base --is-ancestor "$master_head" "$GITHUB_SHA"; then
+            echo "ERROR: Branch '$CURRENT_BRANCH' does not descend from the current HEAD of master."
+            echo "       The branch must be created from master at $master_head."
+            exit 1
+          fi
+
           # Find the first commit that is unique to this branch compared to master.
           first=$(git rev-list --ancestry-path "${master_head}..${GITHUB_SHA}" | tail -n1 || true)
 
