@@ -224,12 +224,6 @@ func P9mdi_subscribe_instrument_order_book(p9_connection *P9GoConnection, symbol
 	}
 }
 
-func P9mdi_dispatch_pending_events(p9_connection *P9GoConnection, timeoutSeconds int) int {
-	result := C.p9mdi_dispatch_pending_events_timeout(p9_connection.c_connection, C.int(timeoutSeconds))
-	//LogTrace("P9mdi_dispatch_pending_events_timeout: connectionId=%v, result=%v", p9_connection.connectionId, result)
-    return int(result)
-}
-
 func P9mdi_ping(p9_connection *P9GoConnection, payload string) int {
 	c_payload := C.CString(payload)
 	defer C.free(unsafe.Pointer(c_payload))

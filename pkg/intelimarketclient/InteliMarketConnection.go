@@ -315,50 +315,6 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 	return nil
 }
 
-/* A função DispatchPendingMessage é blocante e deve ser chamada em loop quando a conexão estiver em
-modo síncrono. Desde que Connect habilita o modo assíncrono por padrão, essa função não precisa ser
-chamada normalmente. Ela fica aguardando pelo número de segundos especificado no parâmetro timeoutSeconds
-pelo recebimento de eventos. Ao finalizar o número de segundos especificado é retornado ao chamador
-o status TIO_ERROR_TIMEOUT (-6).
-
-O erro mais comum retornado fora o timeout é o TIO_ERROR_NETWORK (-2), quando acontece um problema 
-de rede como perda de conexão.
-
-Junto do código de erro conhecido é fornecido um código de erro interno que está relacionado a
-chamadas de funções internas ou do sistema operacional. No caso de erros de rede, por exemplo,
-o erro interno irá conter um código que pode ser buscado na listagem de erros de rede do
-sistema operacional. No caso do Windows o erro será de winsock, mas no caso de Linux há
-casos que o erro interno não é significativo e irá conter lixo (não-implementado).
-
-Porém, há exemplos de uso em que o erro interno ocorrido junto de -2 foi 104, o que significa
-"Connection reset by peer", casos em que o InteliMarket fecha a conexão de um assinante que não
-respondeu aos eventos em tempo hábil para evitar consumo excessivo de recursos do lado servidor.
-
-Outro erro interno reportado é o código 4, ou "Interrupted system call" (EINTR), que significa
-que um signal foi disparado durante uma chamada em progresso. O cancelamento de uma operação
-de rede pode retornar este código.
-*/
-func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) (int, int) {
-	if self.c_connection != nil {
-        internalError := 0
-		//LogStats("intelimarketclient::dispatching")
-        result := intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
-        internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
-		//LogStats(fmt.Sprintf("intelimarketclient::dispatched (result %d, internal error %d)", result, internalError))
-        if result == -6 {
-            LogTrace("DispatchPendingMessage timeout; sending ping")
-            pingResult := intelimarketclient.P9mdi_ping(self.c_connection, "intelimarket-go")
-            if pingResult < 0 {
-                internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
-                return pingResult, internalError
-            }
-        }
-        return result, internalError
-    } else {
-        return -2, 0
-    }
-}
-
 func (self *InteliMarketConnection) Disconnect() {
 	if self.c_connection == nil {
 		return
