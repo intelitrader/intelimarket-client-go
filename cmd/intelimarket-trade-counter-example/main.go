@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
@@ -177,21 +175,13 @@ func main() {
 		connection.SubscribeGroupTrades(group, snapshotSize)
 	}
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	<-connection.Disconnected()
 
-	select {
-	case <-connection.Disconnected():
-		connectedDuration := time.Since(connectTime)
-		cancel()
-		connection.Disconnect()
+	connectedDuration := time.Since(connectTime)
+	cancel()
+	connection.Disconnect()
 
-		PrintLog("FATAL: connection lost")
-		PrintLog("  connectedFor:  %s", connectedDuration)
-		os.Exit(1)
-	case <-sigCh:
-		cancel()
-		connection.Disconnect()
-		PrintLog("Shutdown by signal")
-	}
+	PrintLog("FATAL: connection lost")
+	PrintLog("  connectedFor:  %s", connectedDuration)
+	os.Exit(1)
 }
