@@ -25,14 +25,15 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"unsafe"
 )
 
 func LogTrace(format string, args ...interface{}) {
 	line := fmt.Sprintf(format, args...)
-    c_line := C.CString(line)
+	c_line := C.CString(line)
 	defer C.free(unsafe.Pointer(c_line))
-    C.p9mdi_log(c_line)
+	C.p9mdi_log(c_line)
 }
 
 // cookie, eventCode, exchange, symbol, key, value
@@ -56,16 +57,86 @@ type P9GoConnection struct {
 	disconnectionCallback DisconnectionCallback
 }
 
-//
 // Vamos manter esse map porque não podemos passar
 // um ponteiro de uma estrutura Go (como o P9GoConnection)
 // como cookie para parte C. O Go não permite passar para a parte
 // C nenhum ponteiro Go que tenha outro ponteiro dentro
 // Dá um panic em runtime "cgo argument has Go pointer to Go pointer"
-//
-var g_lastConnectionId uintptr = 0
-var g_activeConnections = map[uintptr]P9GoConnection{}
-var g_connectionsByHandle = map[*C.struct_P9MDI_CONNECTION]uintptr{}
+type connectionRegistry struct {
+	mu       sync.RWMutex
+	byID     map[uintptr]*P9GoConnection
+	byHandle map[*C.struct_P9MDI_CONNECTION]uintptr
+	lastID   uintptr
+}
+
+func newConnectionRegistry() *connectionRegistry {
+	return &connectionRegistry{
+		byID:     make(map[uintptr]*P9GoConnection),
+		byHandle: make(map[*C.struct_P9MDI_CONNECTION]uintptr),
+	}
+}
+
+func (r *connectionRegistry) Add(conn *P9GoConnection) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.lastID++
+	conn.connectionId = r.lastID
+	r.byID[conn.connectionId] = conn
+	r.byHandle[conn.c_connection] = conn.connectionId
+}
+
+func (r *connectionRegistry) GetByID(id uintptr) *P9GoConnection {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.byID[id]
+}
+
+func (r *connectionRegistry) GetByHandle(handle *C.struct_P9MDI_CONNECTION) (*P9GoConnection, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	connectionId, ok := r.byHandle[handle]
+	if !ok {
+		return nil, false
+	}
+	return r.byID[connectionId], true
+}
+
+func (r *connectionRegistry) RemoveByConnection(conn *P9GoConnection) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if conn == nil {
+		return
+	}
+
+	if conn.c_connection != nil {
+		delete(r.byHandle, conn.c_connection)
+	}
+	if conn.connectionId != 0 {
+		delete(r.byID, conn.connectionId)
+	}
+}
+
+func (r *connectionRegistry) RemoveByHandle(handle *C.struct_P9MDI_CONNECTION) *P9GoConnection {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	connectionId, ok := r.byHandle[handle]
+	if !ok {
+		return nil
+	}
+
+	conn := r.byID[connectionId]
+	delete(r.byHandle, handle)
+	if conn != nil {
+		delete(r.byID, conn.connectionId)
+	}
+	return conn
+}
+
+var g_connectionRegistry = newConnectionRegistry()
 
 func P9mdi_connect(hostname string, port uint16, logpath string, propertyCallback PropertyCallback, tradeCallback TradeCallback, bookCallback BookCallback, eventCookie interface{}) (*P9GoConnection, error) {
 	LogTrace("P9mdi_connect: hostname=%v, port=%v", hostname, port)
@@ -89,27 +160,24 @@ func P9mdi_connect(hostname string, port uint16, logpath string, propertyCallbac
 		return nil, errors.New("connection error")
 	}
 
-	g_lastConnectionId++
-	p9_connection := P9GoConnection{}
+	p9_connection := &P9GoConnection{}
 	p9_connection.c_connection = cn
-	p9_connection.connectionId = g_lastConnectionId
 	p9_connection.eventCookie = eventCookie
 	p9_connection.propertyCallback = propertyCallback
 	p9_connection.tradeCallback = tradeCallback
 	p9_connection.bookCallback = bookCallback
 
-	g_activeConnections[g_lastConnectionId] = p9_connection
-	g_connectionsByHandle[cn] = p9_connection.connectionId
+	g_connectionRegistry.Add(p9_connection)
 
 	LogTrace("P9mdi_connect: CONNECTED hostname=%v, port=%v, connectionId=%v", hostname, port, p9_connection.connectionId)
 
-	return &p9_connection, nil
+	return p9_connection, nil
 }
 
 func P9mdi_disconnect(p9_connection *P9GoConnection) {
 	LogTrace("P9mdi_disconnect: connectionId=%v", p9_connection.connectionId)
+	g_connectionRegistry.RemoveByConnection(p9_connection)
 	if p9_connection.c_connection != nil {
-		delete(g_connectionsByHandle, p9_connection.c_connection)
 		C.p9mdi_disconnect(p9_connection.c_connection)
 		p9_connection.c_connection = nil
 	}
@@ -127,7 +195,7 @@ func P9mdi_subscribe_group(p9_connection *P9GoConnection, groupName string, posi
 	LogTrace("P9mdi_subscribe_group: connectionId=%v, groupName=%v", p9_connection.connectionId, groupName)
 
 	cGroupName := C.CString(groupName)
-    c_position := C.int(position)
+	c_position := C.int(position)
 	defer C.free(unsafe.Pointer(cGroupName))
 
 	var cookie uintptr = uintptr(p9_connection.connectionId)
@@ -179,7 +247,7 @@ func P9mdi_subscribe_instrument_trades(p9_connection *P9GoConnection, symbol str
 	c_symbol := C.CString(symbol)
 	defer C.free(unsafe.Pointer(c_symbol))
 
-    c_position := C.uint(position)
+	c_position := C.uint(position)
 
 	var cookie uintptr = uintptr(p9_connection.connectionId)
 
@@ -229,12 +297,12 @@ func P9mdi_ping(p9_connection *P9GoConnection, payload string) int {
 	defer C.free(unsafe.Pointer(c_payload))
 	result := C.p9mdi_ping(p9_connection.c_connection, c_payload)
 	LogTrace("P9mdi_ping: connectionId=%v, payload=%v, result=%v", p9_connection.connectionId, payload, result)
-    return int(result)
+	return int(result)
 }
 
 func P9mdi_get_last_error(p9_connection *P9GoConnection) int {
 	result := C.p9mdi_get_last_error(p9_connection.c_connection)
-    return int(result)
+	return int(result)
 }
 
 //export fieldChangeCallback_Go
@@ -254,32 +322,31 @@ func fieldChangeCallback_Go(
 	value := C.GoString(c_value)
 
 	connectionId := uintptr(cookie)
-	p9_connection := g_activeConnections[connectionId]
+	p9_connection := g_connectionRegistry.GetByID(connectionId)
 
 	/*
-	LogTrace("fieldChangeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, key=%v, value=%v",
-		p9_connection.connectionId,
-		eventCode,
-		exchange,
-		symbol,
-		key,
-		value)
+		LogTrace("fieldChangeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, key=%v, value=%v",
+			p9_connection.connectionId,
+			eventCode,
+			exchange,
+			symbol,
+			key,
+			value)
 	*/
 
 	p9_connection.propertyCallback(p9_connection.eventCookie, eventCode, exchange, symbol, key, value)
 }
 
-
 //export tradeCallback_Go
 func tradeCallback_Go(
-    errorCode int32, 
-    handle unsafe.Pointer, 
-    cookie unsafe.Pointer, 
-    eventCode uint32, 
-    c_exchange *C.char,
-    c_symbol *C.char,
-    position uint32,
-    c_fields *C.struct_KEY_AND_VALUE) {
+	errorCode int32,
+	handle unsafe.Pointer,
+	cookie unsafe.Pointer,
+	eventCode uint32,
+	c_exchange *C.char,
+	c_symbol *C.char,
+	position uint32,
+	c_fields *C.struct_KEY_AND_VALUE) {
 
 	exchange := C.GoString(c_exchange)
 	symbol := C.GoString(c_symbol)
@@ -287,25 +354,25 @@ func tradeCallback_Go(
 	value := "empty"
 
 	connectionId := uintptr(cookie)
-	p9_connection := g_activeConnections[connectionId]
+	p9_connection := g_connectionRegistry.GetByID(connectionId)
 
 	fields := make(map[string]string)
 
-    for ok := c_fields != nil; ok; ok = c_fields != nil {
-        key = C.GoString(c_fields.key)
-        value = C.GoString(c_fields.value)
-        fields[key] = value
-        c_fields = C.p9mdi_get_next_key_value_field(c_fields)
-    }
+	for ok := c_fields != nil; ok; ok = c_fields != nil {
+		key = C.GoString(c_fields.key)
+		value = C.GoString(c_fields.value)
+		fields[key] = value
+		c_fields = C.p9mdi_get_next_key_value_field(c_fields)
+	}
 
 	/*
-	LogTrace("tradeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, fields=%v",
-		p9_connection.connectionId,
-		eventCode,
-		exchange,
-		symbol,
-        position,
-		fields)
+			LogTrace("tradeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, fields=%v",
+				p9_connection.connectionId,
+				eventCode,
+				exchange,
+				symbol,
+		        position,
+				fields)
 	*/
 
 	p9_connection.tradeCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
@@ -328,7 +395,7 @@ func bookEntryCallback_Go(
 	value := "empty"
 
 	connectionId := uintptr(cookie)
-	p9_connection := g_activeConnections[connectionId]
+	p9_connection := g_connectionRegistry.GetByID(connectionId)
 
 	fields := make(map[string]string)
 
@@ -340,13 +407,13 @@ func bookEntryCallback_Go(
 	}
 
 	/*
-	LogTrace("bookEntryCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, fields=%v",
-		p9_connection.connectionId,
-		eventCode,
-		exchange,
-		symbol,
-		position,
-		fields)
+		LogTrace("bookEntryCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, position=%v, fields=%v",
+			p9_connection.connectionId,
+			eventCode,
+			exchange,
+			symbol,
+			position,
+			fields)
 	*/
 
 	p9_connection.bookCallback(p9_connection.eventCookie, eventCode, exchange, symbol, position, fields)
@@ -354,18 +421,17 @@ func bookEntryCallback_Go(
 
 //export disconnectionCallback_Go
 func disconnectionCallback_Go(handle *C.struct_P9MDI_CONNECTION) {
-	connectionId, ok := g_connectionsByHandle[handle]
+	p9_connection, ok := g_connectionRegistry.GetByHandle(handle)
 	if !ok {
 		return
 	}
-	p9_connection := g_activeConnections[connectionId]
 
 	LogTrace("disconnectionCallback_Go: connectionId=%v", p9_connection.connectionId)
 
 	if p9_connection.disconnectionCallback != nil {
-		p9_connection.disconnectionCallback(&p9_connection)
+		p9_connection.disconnectionCallback(p9_connection)
 	}
 
 	p9_connection.c_connection = nil
-	delete(g_connectionsByHandle, handle)
+	g_connectionRegistry.RemoveByHandle(handle)
 }

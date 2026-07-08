@@ -2,9 +2,9 @@ package intelimarketclient
 
 import (
 	"fmt"
+	"runtime"
+	"strconv"
 	"strings"
-    "runtime"
-    "strconv"
 
 	intelimarketclient "github.com/intelitrader/intelimarket-client-go/internal"
 )
@@ -26,7 +26,6 @@ const (
 
 const DefaultChannelSize = 1024
 
-//
 // Códigos de erro do uso da lib InteliMarket/Tio.
 //
 // Esses códigos são gerados internamentes pela lib. Algumas APIs possuem o retorno
@@ -37,28 +36,27 @@ const DefaultChannelSize = 1024
 // interno consultar a seguinte documentação:
 //
 // Se estiver executando a lib em ambiente Windows:
-//  - System Error Codes (ref https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-)
-//  - Windows Sockets Error Codes (ref https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2)
+//   - System Error Codes (ref https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-)
+//   - Windows Sockets Error Codes (ref https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2)
 //
 // Se estiver executando a lib em ambiente Linux/UNIX:
-//  - Man errno ou Linux Error Codes for C Programming Language (ref https://www.thegeekstuff.com/2010/10/linux-error-codes/)
-//
+//   - Man errno ou Linux Error Codes for C Programming Language (ref https://www.thegeekstuff.com/2010/10/linux-error-codes/)
 const (
-  // Sucesso ao realizar a operação.
+	// Sucesso ao realizar a operação.
 	TIO_SUCCESS = 0
-  // Erro ao realizar a operação.
+	// Erro ao realizar a operação.
 	TIO_ERROR_GENERIC = -1
-  // Erro de rede.
+	// Erro de rede.
 	TIO_ERROR_NETWORK = -2
-  // Erro de protocolo.
+	// Erro de protocolo.
 	TIO_ERROR_PROTOCOL = -3
-  // Faltando parâmetro na operação.
+	// Faltando parâmetro na operação.
 	TIO_ERROR_MISSING_PARAMETER = -4
-  // Objeto não encontrado.
+	// Objeto não encontrado.
 	TIO_ERROR_NO_SUCH_OBJECT = -5
-  // Timeout ao realizar a operação.
+	// Timeout ao realizar a operação.
 	TIO_ERROR_TIMEOUT = -6
-  // Memória não disponível para continuar operação.
+	// Memória não disponível para continuar operação.
 	TIO_ERROR_OUT_OF_MEMORY = -7
 )
 
@@ -81,15 +79,15 @@ type TradeChangeInfo struct {
 }
 
 type BookChangeInfo struct {
-	Exchange, Symbol     string
-	OrderId              string
-	Broker               string
-	Price                string
-	Quantity             string
-	Date                 string
-	Time                 string
-	Position             string
-	Side                 string
+	Exchange, Symbol string
+	OrderId          string
+	Broker           string
+	Price            string
+	Quantity         string
+	Date             string
+	Time             string
+	Position         string
+	Side             string
 }
 
 func LogTrace(format string, args ...interface{}) {
@@ -146,7 +144,7 @@ func (self TradeChangeInfo) String() string {
 		self.Price,
 		self.Buyer,
 		self.Seller,
-        self.Position)
+		self.Position)
 
 	return ret
 }
@@ -188,11 +186,11 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
 
 	tradeInfo := TradeChangeInfo{}
 
-    tradeInfo.Exchange = exchange
-    tradeInfo.Symbol = symbol
-    tradeInfo.Position = strconv.FormatUint(uint64(position), 10)
+	tradeInfo.Exchange = exchange
+	tradeInfo.Symbol = symbol
+	tradeInfo.Position = strconv.FormatUint(uint64(position), 10)
 
-	for k, v := range fields { 
+	for k, v := range fields {
 		switch k {
 		case "MDEntryBuyer":
 			tradeInfo.Buyer = v
@@ -213,9 +211,9 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
 		}
 	}
 
-    if len(tradeInfo.TradeId) > 0 {
-	    intelimarketConnection.tradeChangeChannel <- tradeInfo
-    }
+	if len(tradeInfo.TradeId) > 0 {
+		intelimarketConnection.tradeChangeChannel <- tradeInfo
+	}
 }
 
 func p9_OnBookCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
@@ -225,11 +223,11 @@ func p9_OnBookCallback(eventCookie interface{}, eventCode uint32, exchange strin
 
 	bookInfo := BookChangeInfo{}
 
-    bookInfo.Exchange = exchange
-    bookInfo.Symbol = symbol
-    bookInfo.Position = strconv.FormatUint(uint64(position), 10)
+	bookInfo.Exchange = exchange
+	bookInfo.Symbol = symbol
+	bookInfo.Position = strconv.FormatUint(uint64(position), 10)
 
-	for k, v := range fields { 
+	for k, v := range fields {
 		switch k {
 		case "OrderID":
 			bookInfo.OrderId = v
@@ -274,11 +272,11 @@ func (self *InteliMarketConnection) Disconnected() <-chan struct{} {
 }
 
 func LogStats(event string) {
-    var mem runtime.MemStats
-    runtime.ReadMemStats(&mem)
-    var mb = mem.TotalAlloc / 1024 / 1024
-    line := fmt.Sprintf("event: %s, memory %dMB", event, mb)
-    LogTrace(line)
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	var mb = mem.TotalAlloc / 1024 / 1024
+	line := fmt.Sprintf("event: %s, memory %dMB", event, mb)
+	LogTrace(line)
 }
 
 func (self *InteliMarketConnection) Connect(server string, port uint16, logpath string) error {
@@ -334,12 +332,12 @@ func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string)
 }
 
 /*
-A função SubscribeInstrumentTrades assina eventos de trade e permite receber eventos passados através 
-do parâmetro position. Esse parâmetro é chamado internamente de snapshotSize e significa a quantidade 
-de eventos que será entregue ao assinante antes dos eventos incrementais (o que seguem após a assinatura 
-ser concluída). Se passado 0 apenas os eventos incrementais serão repassados, o que chamamos internamente 
-de modo de assinatura IncrementalOnly. Se passado um valor diferente de 0 o modo de assinatura será 
-SnapshotPlusIncremental, onde os últimos position eventos antes dos eventos incrementais serão 
+A função SubscribeInstrumentTrades assina eventos de trade e permite receber eventos passados através
+do parâmetro position. Esse parâmetro é chamado internamente de snapshotSize e significa a quantidade
+de eventos que será entregue ao assinante antes dos eventos incrementais (o que seguem após a assinatura
+ser concluída). Se passado 0 apenas os eventos incrementais serão repassados, o que chamamos internamente
+de modo de assinatura IncrementalOnly. Se passado um valor diferente de 0 o modo de assinatura será
+SnapshotPlusIncremental, onde os últimos position eventos antes dos eventos incrementais serão
 repassados ao assinante.
 */
 func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, position string) {
@@ -374,14 +372,14 @@ func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
 }
 
 /*
-A função SubscribeGroupTrades assina eventos de trade de um grupo de instrumentos e permite receber 
-eventos passados através do parâmetro position. Esse parâmetro é chamado internamente de snapshotSize 
-e significa a quantidade de eventos que será entregue ao assinante antes dos eventos incrementais 
-(o que seguem após a assinatura ser concluída). Se passado 0 todos os eventos antes dos incrementais serão 
-repassados. Se passado um valor maior que 0 os últimos position eventos antes dos eventos incrementais serão 
+A função SubscribeGroupTrades assina eventos de trade de um grupo de instrumentos e permite receber
+eventos passados através do parâmetro position. Esse parâmetro é chamado internamente de snapshotSize
+e significa a quantidade de eventos que será entregue ao assinante antes dos eventos incrementais
+(o que seguem após a assinatura ser concluída). Se passado 0 todos os eventos antes dos incrementais serão
+repassados. Se passado um valor maior que 0 os últimos position eventos antes dos eventos incrementais serão
 repassados ao assinante.
 
-Note que o parâmetro position para assinatura de grupos se refere aos eventos dos instrumentos 
+Note que o parâmetro position para assinatura de grupos se refere aos eventos dos instrumentos
 individualmente, e não em conjunto. Por exemplo, se for usado um position 100 serão enviados os útimos 100
 eventos para cada instrumento pertencente ao grupo assinado. Caso um instrumento não possua essa quantidade
 de eventos serão enviados menos eventos. Caso um instrumento possua mais eventos que essa quantidade
