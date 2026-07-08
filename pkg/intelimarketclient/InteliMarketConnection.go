@@ -24,7 +24,7 @@ const (
 	EventCodeSubscription uint = 0x66
 )
 
-const DefaultChannelSize = 1024
+const DefaultChannelSize = 200000
 
 // Códigos de erro do uso da lib InteliMarket/Tio.
 //
