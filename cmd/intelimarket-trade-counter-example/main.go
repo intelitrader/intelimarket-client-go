@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/intelitrader/intelimarket-client-go/pkg/intelimarketclient"
@@ -121,11 +120,8 @@ func main() {
 	portPtr := flag.Int("port", 2605, "port to connect")
 	logpathPtr := flag.String("log-path", ".", "path to log files")
 	snapshotSizePtr := flag.String("snapshot-size", "0", "trade snapshot size (0 for incremental only)")
-	timeoutPtr := flag.Int("timeout", 10, "timeout in seconds for dispatch/reconnect")
 	logEveryPtr := flag.Int("log-every", 1000, "log a summary every N trades")
 	tolerancePtr := flag.Int64("tolerance", 10, "ignore mismatch if local-server <= N")
-	dispatchRetriesPtr := flag.Int("dispatch-retries", 3, "retry dispatch on network error before giving up")
-	chanSizePtr := flag.Int("chan-size", 10000, "event channel buffer size")
 
 	var groups arrayFlags
 	flag.Var(&groups, "group", "instrument group(s) to subscribe (can be used multiple times)")
@@ -144,16 +140,13 @@ func main() {
 	port := uint16(*portPtr)
 	logpath := *logpathPtr
 	snapshotSize := *snapshotSizePtr
-	timeout := *timeoutPtr
 	logEvery := int64(*logEveryPtr)
 	tolerance := *tolerancePtr
-	dispatchRetries := *dispatchRetriesPtr
-	chanSize := *chanSizePtr
 
 	connection := &intelimarketclient.InteliMarketConnection{}
 
 	PrintLog("Connecting to %s:%d", server, port)
-	err := connection.Connect(server, port, logpath, chanSize)
+	err := connection.Connect(server, port, logpath)
 	if err != nil {
 		PrintLog("FATAL: connection failed: %v", err)
 		os.Exit(1)
@@ -182,34 +175,13 @@ func main() {
 		connection.SubscribeGroupTrades(group, snapshotSize)
 	}
 
-	retries := 0
-	for {
-		result, internalError := connection.DispatchPendingMessage(timeout)
+	<-connection.Disconnected()
 
-		if internalError == int(syscall.EINTR) {
-			continue
-		}
+	connectedDuration := time.Since(connectTime)
+	cancel()
+	connection.Disconnect()
 
-		if result == -2 {
-			retries++
-			PrintLog("NETWORK ERROR result=%d internalError=%d retry=%d/%d", result, internalError, retries, dispatchRetries)
-			if retries <= dispatchRetries {
-				continue
-			}
-		}
-
-		if result < 0 && result != -6 {
-			connectedDuration := time.Since(connectTime)
-			cancel()
-			connection.Disconnect()
-
-			PrintLog("FATAL: connection lost")
-			PrintLog("  result:        %d", result)
-			PrintLog("  internalError: %d", internalError)
-			PrintLog("  connectedFor:  %s", connectedDuration)
-			os.Exit(1)
-		}
-
-		retries = 0
-	}
+	PrintLog("FATAL: connection lost")
+	PrintLog("  connectedFor:  %s", connectedDuration)
+	os.Exit(1)
 }

@@ -18,6 +18,7 @@ package intelimarketclient
 void fieldChangeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, char* key, char* value);
 void tradeCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
 void bookEntryCallback_Go(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields);
+void disconnectionCallback_Go(struct P9MDI_CONNECTION* connection);
 
 
 //
@@ -37,6 +38,11 @@ void TradeCallback_cgo(int error_code, void* handle, void* cookie, unsigned even
 void BookEntryCallback_cgo(int error_code, void* handle, void* cookie, unsigned eventCode, char* exchange, char* symbol, unsigned position, struct KEY_AND_VALUE* fields)
 {
 	bookEntryCallback_Go(error_code, handle, cookie, eventCode, exchange, symbol, position, fields);
+}
+
+void DisconnectionCallback_cgo(struct P9MDI_CONNECTION* connection)
+{
+	disconnectionCallback_Go(connection);
 }
 
 
