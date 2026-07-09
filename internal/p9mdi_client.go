@@ -323,6 +323,9 @@ func fieldChangeCallback_Go(
 
 	connectionId := uintptr(cookie)
 	p9_connection := g_connectionRegistry.GetByID(connectionId)
+	if p9_connection == nil {
+		return
+	}
 
 	/*
 		LogTrace("fieldChangeCallback_Go: connectionId=%v, eventCode=%v, exchange=%v, symbol=%v, key=%v, value=%v",
@@ -355,6 +358,9 @@ func tradeCallback_Go(
 
 	connectionId := uintptr(cookie)
 	p9_connection := g_connectionRegistry.GetByID(connectionId)
+	if p9_connection == nil {
+		return
+	}
 
 	fields := make(map[string]string)
 
@@ -396,6 +402,9 @@ func bookEntryCallback_Go(
 
 	connectionId := uintptr(cookie)
 	p9_connection := g_connectionRegistry.GetByID(connectionId)
+	if p9_connection == nil {
+		return
+	}
 
 	fields := make(map[string]string)
 

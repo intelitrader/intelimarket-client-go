@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	intelimarketclient "github.com/intelitrader/intelimarket-client-go/internal"
 )
@@ -162,6 +163,7 @@ func (self BookChangeInfo) String() string {
 }
 
 type InteliMarketConnection struct {
+	mu                    sync.Mutex
 	c_connection          *intelimarketclient.P9GoConnection
 	hostname              string
 	port                  uint16
@@ -169,6 +171,7 @@ type InteliMarketConnection struct {
 	tradeChangeChannel    chan TradeChangeInfo
 	bookChangeChannel     chan BookChangeInfo
 	disconnected          chan struct{}
+	disconnectOnce        sync.Once
 }
 
 func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, key string, value string) {
@@ -279,14 +282,33 @@ func LogStats(event string) {
 	LogTrace(line)
 }
 
+func (self *InteliMarketConnection) getConnection() *intelimarketclient.P9GoConnection {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	return self.c_connection
+}
+
+func (self *InteliMarketConnection) markDisconnected() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	self.c_connection = nil
+	self.disconnectOnce.Do(func() {
+		close(self.disconnected)
+	})
+}
+
 func (self *InteliMarketConnection) Connect(server string, port uint16, logpath string) error {
 	var err error
 
 	LogStats("intelimarketclient::connecting")
+	self.mu.Lock()
+	self.disconnectOnce = sync.Once{}
 	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, logpath, p9_OnPropertyCallback, p9_OnTradeCallback, p9_OnBookCallback, self)
 	LogTrace("Connecting to %v:%v", server, port)
 
 	if err != nil {
+		self.mu.Unlock()
 		return err
 	}
 
@@ -295,11 +317,11 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 	self.hostname = server
 	self.port = port
 	self.disconnected = make(chan struct{})
+	self.mu.Unlock()
 
-	intelimarketclient.P9mdi_set_asynchronous(self.c_connection, func(c *intelimarketclient.P9GoConnection) {
+	intelimarketclient.P9mdi_set_asynchronous(self.getConnection(), func(c *intelimarketclient.P9GoConnection) {
 		LogTrace("InteliMarketConnection: disconnected %v:%v", self.hostname, self.port)
-		self.c_connection = nil
-		close(self.disconnected)
+		self.markDisconnected()
 	})
 	LogTrace("Asynchronous mode enabled")
 
@@ -314,12 +336,12 @@ func (self *InteliMarketConnection) Connect(server string, port uint16, logpath 
 }
 
 func (self *InteliMarketConnection) Disconnect() {
-	if self.c_connection == nil {
+	conn := self.getConnection()
+	if conn == nil {
 		return
 	}
-	intelimarketclient.P9mdi_disconnect(self.c_connection)
-
-	self.c_connection = nil
+	intelimarketclient.P9mdi_disconnect(conn)
+	self.markDisconnected()
 }
 
 func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string) {
@@ -328,7 +350,12 @@ func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string)
 		LogStats("intelimarketclient::property_channel_created")
 	}
 
-	intelimarketclient.P9mdi_subscribe_instrument_properties(self.c_connection, symbol)
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
+	intelimarketclient.P9mdi_subscribe_instrument_properties(conn, symbol)
 }
 
 /*
@@ -346,8 +373,13 @@ func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, pos
 		LogStats("intelimarketclient::trade_channel_created")
 	}
 
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
 	int_position, _ := strconv.ParseInt(position, 10, 32)
-	intelimarketclient.P9mdi_subscribe_instrument_trades(self.c_connection, symbol, int32(int_position))
+	intelimarketclient.P9mdi_subscribe_instrument_trades(conn, symbol, int32(int_position))
 }
 
 func (self *InteliMarketConnection) SubscribeInstrumentOrderBook(symbol string, orderBookSize string) {
@@ -356,10 +388,15 @@ func (self *InteliMarketConnection) SubscribeInstrumentOrderBook(symbol string, 
 		LogStats("intelimarketclient::book_channel_created")
 	}
 
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
 	int_size, _ := strconv.ParseInt(orderBookSize, 10, 32)
 
-	intelimarketclient.P9mdi_subscribe_instrument_order_book(self.c_connection, symbol, 1, int32(int_size)) //BOOK_SIDE_BUY
-	intelimarketclient.P9mdi_subscribe_instrument_order_book(self.c_connection, symbol, 2, int32(int_size)) //BOOK_SIDE_SELL
+	intelimarketclient.P9mdi_subscribe_instrument_order_book(conn, symbol, 1, int32(int_size)) //BOOK_SIDE_BUY
+	intelimarketclient.P9mdi_subscribe_instrument_order_book(conn, symbol, 2, int32(int_size)) //BOOK_SIDE_SELL
 }
 
 func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
@@ -367,8 +404,13 @@ func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
 	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
 	// (tudo que começa com __meta__/groups dentro do tio)
 	//
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/properties", strings.ToLower(groupName))
-	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, 0)
+	intelimarketclient.P9mdi_subscribe_group(conn, tioGroupName, 0)
 }
 
 /*
@@ -390,9 +432,14 @@ func (self *InteliMarketConnection) SubscribeGroupTrades(groupName string, posit
 	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
 	// (tudo que começa com __meta__/groups dentro do tio)
 	//
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
 	int_position, _ := strconv.ParseInt(position, 10, 32)
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/trades", strings.ToLower(groupName))
-	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, -int32(int_position))
+	intelimarketclient.P9mdi_subscribe_group(conn, tioGroupName, -int32(int_position))
 }
 
 func (self *InteliMarketConnection) SubscribeGroupBook(groupName string) {
@@ -400,6 +447,11 @@ func (self *InteliMarketConnection) SubscribeGroupBook(groupName string) {
 	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
 	// (tudo que começa com __meta__/groups dentro do tio)
 	//
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/book", strings.ToLower(groupName))
-	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, 0)
+	intelimarketclient.P9mdi_subscribe_group(conn, tioGroupName, 0)
 }
