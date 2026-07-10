@@ -267,6 +267,7 @@ func (self *InteliMarketConnection) GetBookChangeChannel() <-chan BookChangeInfo
 }
 
 func LogStats(event string) {
+    return
     var mem runtime.MemStats
     runtime.ReadMemStats(&mem)
     var mb = mem.TotalAlloc / 1024 / 1024

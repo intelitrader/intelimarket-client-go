@@ -46,11 +46,10 @@ func PropertyToStdOut(channel <-chan intelimarketclient.PropertyChangeInfo) {
 
 	for {
 		info := <-channel
-        line := fmt.Sprintf("Property change: %s", info)
         if g_verbose {
+            line := fmt.Sprintf("Property change: %s", info)
             log.Println(line)
         }
-        intelimarketclient.LogTrace(line)
         g_propertyCount += 1
         Tick()
 	}
@@ -62,11 +61,10 @@ func TradeToStdOut(channel <-chan intelimarketclient.TradeChangeInfo) {
 
 	for {
 		info := <-channel
-        line := fmt.Sprintf("Trade event: %s", info)
         if g_verbose {
+            line := fmt.Sprintf("Trade event: %s", info)
             log.Println(line)
         }
-        intelimarketclient.LogTrace(line)
         g_tradeCount += 1
         Tick()
 	}
@@ -78,11 +76,10 @@ func BookToStdOut(channel <-chan intelimarketclient.BookChangeInfo) {
 
     for {
         info := <-channel
-        line := fmt.Sprintf("Book event: %s", info)
         if g_verbose {
+            line := fmt.Sprintf("Book event: %s", info)
             log.Println(line)
         }
-        intelimarketclient.LogTrace(line)
         g_bookCount += 1
         Tick()
     }

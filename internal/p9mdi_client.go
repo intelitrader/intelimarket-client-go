@@ -27,6 +27,7 @@ import (
 )
 
 func LogTrace(format string, args ...interface{}) {
+	return
 	line := fmt.Sprintf(format, args...)
     c_line := C.CString(line)
 	defer C.free(unsafe.Pointer(c_line))
