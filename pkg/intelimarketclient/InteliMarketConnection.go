@@ -81,6 +81,7 @@ type TradeChangeInfo struct {
 
 type BookChangeInfo struct {
 	Exchange, Symbol string
+	EventCode        EventCode
 	OrderId          string
 	Broker           string
 	Price            string
@@ -151,9 +152,10 @@ func (self TradeChangeInfo) String() string {
 }
 
 func (self BookChangeInfo) String() string {
-	ret := fmt.Sprintf("%v.%v -> %v<-->%v@%v -> %v",
+	ret := fmt.Sprintf("%v.%v [%v] -> %v<-->%v@%v -> %v",
 		self.Exchange,
 		self.Symbol,
+		eventCodeToString(self.EventCode),
 		self.Price,
 		self.Quantity,
 		self.Broker,
@@ -229,6 +231,7 @@ func p9_OnBookCallback(eventCookie interface{}, eventCode uint32, exchange strin
 	bookInfo.Exchange = exchange
 	bookInfo.Symbol = symbol
 	bookInfo.Position = strconv.FormatUint(uint64(position), 10)
+	bookInfo.EventCode = EventCode(eventCode)
 
 	for k, v := range fields {
 		switch k {
@@ -248,7 +251,7 @@ func p9_OnBookCallback(eventCookie interface{}, eventCode uint32, exchange strin
 			bookInfo.Side = v
 		}
 	}
-	if len(bookInfo.OrderId) > 0 {
+	if len(bookInfo.OrderId) > 0 || bookInfo.EventCode == EventCodeClear {
 		intelimarketConnection.bookChangeChannel <- bookInfo
 	}
 }
