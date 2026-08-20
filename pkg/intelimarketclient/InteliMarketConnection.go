@@ -2,9 +2,10 @@ package intelimarketclient
 
 import (
 	"fmt"
+	"runtime"
+	"strconv"
 	"strings"
-    "runtime"
-    "strconv"
+	"sync"
 
 	intelimarketclient "github.com/intelitrader/intelimarket-client-go/internal"
 )
@@ -24,7 +25,8 @@ const (
 	EventCodeSubscription uint = 0x66
 )
 
-//
+const DefaultChannelSize = 200000
+
 // Códigos de erro do uso da lib InteliMarket/Tio.
 //
 // Esses códigos são gerados internamentes pela lib. Algumas APIs possuem o retorno
@@ -35,28 +37,27 @@ const (
 // interno consultar a seguinte documentação:
 //
 // Se estiver executando a lib em ambiente Windows:
-//  - System Error Codes (ref https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-)
-//  - Windows Sockets Error Codes (ref https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2)
+//   - System Error Codes (ref https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-)
+//   - Windows Sockets Error Codes (ref https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2)
 //
 // Se estiver executando a lib em ambiente Linux/UNIX:
-//  - Man errno ou Linux Error Codes for C Programming Language (ref https://www.thegeekstuff.com/2010/10/linux-error-codes/)
-//
+//   - Man errno ou Linux Error Codes for C Programming Language (ref https://www.thegeekstuff.com/2010/10/linux-error-codes/)
 const (
-  // Sucesso ao realizar a operação.
+	// Sucesso ao realizar a operação.
 	TIO_SUCCESS = 0
-  // Erro ao realizar a operação.
+	// Erro ao realizar a operação.
 	TIO_ERROR_GENERIC = -1
-  // Erro de rede.
+	// Erro de rede.
 	TIO_ERROR_NETWORK = -2
-  // Erro de protocolo.
+	// Erro de protocolo.
 	TIO_ERROR_PROTOCOL = -3
-  // Faltando parâmetro na operação.
+	// Faltando parâmetro na operação.
 	TIO_ERROR_MISSING_PARAMETER = -4
-  // Objeto não encontrado.
+	// Objeto não encontrado.
 	TIO_ERROR_NO_SUCH_OBJECT = -5
-  // Timeout ao realizar a operação.
+	// Timeout ao realizar a operação.
 	TIO_ERROR_TIMEOUT = -6
-  // Memória não disponível para continuar operação.
+	// Memória não disponível para continuar operação.
 	TIO_ERROR_OUT_OF_MEMORY = -7
 )
 
@@ -79,15 +80,15 @@ type TradeChangeInfo struct {
 }
 
 type BookChangeInfo struct {
-	Exchange, Symbol     string
-	OrderId              string
-	Broker               string
-	Price                string
-	Quantity             string
-	Date                 string
-	Time                 string
-	Position             string
-	Side                 string
+	Exchange, Symbol string
+	OrderId          string
+	Broker           string
+	Price            string
+	Quantity         string
+	Date             string
+	Time             string
+	Position         string
+	Side             string
 }
 
 func LogTrace(format string, args ...interface{}) {
@@ -144,7 +145,7 @@ func (self TradeChangeInfo) String() string {
 		self.Price,
 		self.Buyer,
 		self.Seller,
-        self.Position)
+		self.Position)
 
 	return ret
 }
@@ -162,19 +163,21 @@ func (self BookChangeInfo) String() string {
 }
 
 type InteliMarketConnection struct {
+	mu                    sync.Mutex
 	c_connection          *intelimarketclient.P9GoConnection
 	hostname              string
 	port                  uint16
 	propertyChangeChannel chan PropertyChangeInfo
 	tradeChangeChannel    chan TradeChangeInfo
-	bookChangeChannel 	  chan BookChangeInfo
-    chansize              int
+	bookChangeChannel     chan BookChangeInfo
+	disconnected          chan struct{}
+	disconnectOnce        sync.Once
 }
 
 func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, key string, value string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	LogTrace("p9_OnPropertyCallback", intelimarketConnection, symbol, key, value)
+	//LogTrace("p9_OnPropertyCallback", intelimarketConnection, symbol, key, value)
 
 	intelimarketConnection.propertyChangeChannel <- PropertyChangeInfo{exchange, symbol, EventCode(eventCode), key, value}
 }
@@ -182,15 +185,15 @@ func p9_OnPropertyCallback(eventCookie interface{}, eventCode uint32, exchange s
 func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	LogTrace("p9_OnTradeCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
+	//LogTrace("p9_OnTradeCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
 
 	tradeInfo := TradeChangeInfo{}
 
-    tradeInfo.Exchange = exchange
-    tradeInfo.Symbol = symbol
-    tradeInfo.Position = strconv.FormatUint(uint64(position), 10)
+	tradeInfo.Exchange = exchange
+	tradeInfo.Symbol = symbol
+	tradeInfo.Position = strconv.FormatUint(uint64(position), 10)
 
-	for k, v := range fields { 
+	for k, v := range fields {
 		switch k {
 		case "MDEntryBuyer":
 			tradeInfo.Buyer = v
@@ -211,23 +214,23 @@ func p9_OnTradeCallback(eventCookie interface{}, eventCode uint32, exchange stri
 		}
 	}
 
-    if len(tradeInfo.TradeId) > 0 {
-	    intelimarketConnection.tradeChangeChannel <- tradeInfo
-    }
+	if len(tradeInfo.TradeId) > 0 {
+		intelimarketConnection.tradeChangeChannel <- tradeInfo
+	}
 }
 
 func p9_OnBookCallback(eventCookie interface{}, eventCode uint32, exchange string, symbol string, position uint32, fields map[string]string) {
 	intelimarketConnection := eventCookie.(*InteliMarketConnection)
 
-	LogTrace("p9_OnBookCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
+	//LogTrace("p9_OnBookCallback connection:%v symbol:%v position:%v fields:%v", intelimarketConnection, symbol, position, fields)
 
 	bookInfo := BookChangeInfo{}
 
-    bookInfo.Exchange = exchange
-    bookInfo.Symbol = symbol
-    bookInfo.Position = strconv.FormatUint(uint64(position), 10)
+	bookInfo.Exchange = exchange
+	bookInfo.Symbol = symbol
+	bookInfo.Position = strconv.FormatUint(uint64(position), 10)
 
-	for k, v := range fields { 
+	for k, v := range fields {
 		switch k {
 		case "OrderID":
 			bookInfo.OrderId = v
@@ -266,131 +269,134 @@ func (self *InteliMarketConnection) GetBookChangeChannel() <-chan BookChangeInfo
 	return self.bookChangeChannel
 }
 
-func LogStats(event string) {
-    var mem runtime.MemStats
-    runtime.ReadMemStats(&mem)
-    var mb = mem.TotalAlloc / 1024 / 1024
-    line := fmt.Sprintf("event: %s, memory %dMB", event, mb)
-    LogTrace(line)
+// Disconnected returns a channel that is closed when the connection is lost.
+func (self *InteliMarketConnection) Disconnected() <-chan struct{} {
+	return self.disconnected
 }
 
-func (self *InteliMarketConnection) Connect(server string, port uint16, logpath string, chansize int) error {
+func LogStats(event string) {
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	var mb = mem.TotalAlloc / 1024 / 1024
+	line := fmt.Sprintf("event: %s, memory %dMB", event, mb)
+	LogTrace(line)
+}
+
+func (self *InteliMarketConnection) getConnection() *intelimarketclient.P9GoConnection {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	return self.c_connection
+}
+
+func (self *InteliMarketConnection) markDisconnected() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	self.c_connection = nil
+	self.disconnectOnce.Do(func() {
+		close(self.disconnected)
+	})
+}
+
+func (self *InteliMarketConnection) Connect(server string, port uint16, logpath string) error {
 	var err error
 
-    LogStats("intelimarketclient::connecting")
+	LogStats("intelimarketclient::connecting")
+	self.mu.Lock()
+	self.disconnectOnce = sync.Once{}
 	self.c_connection, err = intelimarketclient.P9mdi_connect(server, port, logpath, p9_OnPropertyCallback, p9_OnTradeCallback, p9_OnBookCallback, self)
 	LogTrace("Connecting to %v:%v", server, port)
 
 	if err != nil {
+		self.mu.Unlock()
 		return err
 	}
 
-    LogStats("intelimarketclient::connected")
+	LogStats("intelimarketclient::connected")
 
 	self.hostname = server
 	self.port = port
-    self.chansize = chansize
+	self.disconnected = make(chan struct{})
+	self.mu.Unlock()
 
-	self.tradeChangeChannel = make(chan TradeChangeInfo, self.chansize)
-		LogStats("intelimarketclient::trade_channel_created")
-	self.propertyChangeChannel = make(chan PropertyChangeInfo, self.chansize)
-		LogStats("intelimarketclient::property_channel_created")
-	self.bookChangeChannel = make(chan BookChangeInfo, self.chansize)
-		LogStats("intelimarketclient::book_channel_created")
-		
+	intelimarketclient.P9mdi_set_asynchronous(self.getConnection(), func(c *intelimarketclient.P9GoConnection) {
+		LogTrace("InteliMarketConnection: disconnected %v:%v", self.hostname, self.port)
+		self.markDisconnected()
+	})
+	LogTrace("Asynchronous mode enabled")
+
+	self.tradeChangeChannel = make(chan TradeChangeInfo, DefaultChannelSize)
+	LogStats("intelimarketclient::trade_channel_created")
+	self.propertyChangeChannel = make(chan PropertyChangeInfo, DefaultChannelSize)
+	LogStats("intelimarketclient::property_channel_created")
+	self.bookChangeChannel = make(chan BookChangeInfo, DefaultChannelSize)
+	LogStats("intelimarketclient::book_channel_created")
+
 	return nil
 }
 
-/* A função DispatchPendingMessage é blocante e deve ser chamada em loop até o assinante desejar continuar
-recebendo eventos. Ela fica aguardando pelo número de segundos especificado no parâmetro timeoutSeconds 
-pelo recebimento de eventos. Ao finalizar o número de segundos especificado é retornado ao chamador 
-o status TIO_ERROR_TIMEOUT (-6).
-
-O erro mais comum retornado fora o timeout é o TIO_ERROR_NETWORK (-2), quando acontece um problema 
-de rede como perda de conexão.
-
-Junto do código de erro conhecido é fornecido um código de erro interno que está relacionado a
-chamadas de funções internas ou do sistema operacional. No caso de erros de rede, por exemplo,
-o erro interno irá conter um código que pode ser buscado na listagem de erros de rede do
-sistema operacional. No caso do Windows o erro será de winsock, mas no caso de Linux há
-casos que o erro interno não é significativo e irá conter lixo (não-implementado).
-
-Porém, há exemplos de uso em que o erro interno ocorrido junto de -2 foi 104, o que significa
-"Connection reset by peer", casos em que o InteliMarket fecha a conexão de um assinante que não
-respondeu aos eventos em tempo hábil para evitar consumo excessivo de recursos do lado servidor.
-
-Outro erro interno reportado é o código 4, ou "Interrupted system call" (EINTR), que significa
-que um signal foi disparado durante uma chamada em progresso. O cancelamento de uma operação
-de rede pode retornar este código.
-*/
-func (self *InteliMarketConnection) DispatchPendingMessage(timeoutSeconds int) (int, int) {
-	if self.c_connection != nil {
-        internalError := 0
-        LogStats("intelimarketclient::dispatching")
-        result := intelimarketclient.P9mdi_dispatch_pending_events(self.c_connection, timeoutSeconds)
-        internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
-        LogStats(fmt.Sprintf("intelimarketclient::dispatched (result %d, internal error %d)", result, internalError))
-        if result == -6 {
-            LogTrace("DispatchPendingMessage timeout; sending ping")
-            pingResult := intelimarketclient.P9mdi_ping(self.c_connection, "intelimarket-go")
-            if pingResult < 0 {
-                internalError = intelimarketclient.P9mdi_get_last_error(self.c_connection)
-                return pingResult, internalError
-            }
-        }
-        return result, internalError
-    } else {
-        return -2, 0
-    }
-}
-
 func (self *InteliMarketConnection) Disconnect() {
-	if self.c_connection == nil {
+	conn := self.getConnection()
+	if conn == nil {
 		return
 	}
-	intelimarketclient.P9mdi_disconnect(self.c_connection)
-
-	self.c_connection = nil
+	intelimarketclient.P9mdi_disconnect(conn)
+	self.markDisconnected()
 }
 
 func (self *InteliMarketConnection) SubscribeInstrumentProperties(symbol string) {
 	if self.propertyChangeChannel == nil {
-		self.propertyChangeChannel = make(chan PropertyChangeInfo, self.chansize)
+		self.propertyChangeChannel = make(chan PropertyChangeInfo, DefaultChannelSize)
 		LogStats("intelimarketclient::property_channel_created")
 	}
 
-	intelimarketclient.P9mdi_subscribe_instrument_properties(self.c_connection, symbol)
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
+	intelimarketclient.P9mdi_subscribe_instrument_properties(conn, symbol)
 }
 
 /*
-A função SubscribeInstrumentTrades assina eventos de trade e permite receber eventos passados através 
-do parâmetro position. Esse parâmetro é chamado internamente de snapshotSize e significa a quantidade 
-de eventos que será entregue ao assinante antes dos eventos incrementais (o que seguem após a assinatura 
-ser concluída). Se passado 0 apenas os eventos incrementais serão repassados, o que chamamos internamente 
-de modo de assinatura IncrementalOnly. Se passado um valor diferente de 0 o modo de assinatura será 
-SnapshotPlusIncremental, onde os últimos position eventos antes dos eventos incrementais serão 
+A função SubscribeInstrumentTrades assina eventos de trade e permite receber eventos passados através
+do parâmetro position. Esse parâmetro é chamado internamente de snapshotSize e significa a quantidade
+de eventos que será entregue ao assinante antes dos eventos incrementais (o que seguem após a assinatura
+ser concluída). Se passado 0 apenas os eventos incrementais serão repassados, o que chamamos internamente
+de modo de assinatura IncrementalOnly. Se passado um valor diferente de 0 o modo de assinatura será
+SnapshotPlusIncremental, onde os últimos position eventos antes dos eventos incrementais serão
 repassados ao assinante.
 */
 func (self *InteliMarketConnection) SubscribeInstrumentTrades(symbol string, position string) {
 	if self.tradeChangeChannel == nil {
-		self.tradeChangeChannel = make(chan TradeChangeInfo, self.chansize)
+		self.tradeChangeChannel = make(chan TradeChangeInfo, DefaultChannelSize)
 		LogStats("intelimarketclient::trade_channel_created")
 	}
 
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
 	int_position, _ := strconv.ParseInt(position, 10, 32)
-	intelimarketclient.P9mdi_subscribe_instrument_trades(self.c_connection, symbol, int32(int_position))
+	intelimarketclient.P9mdi_subscribe_instrument_trades(conn, symbol, int32(int_position))
 }
 
 func (self *InteliMarketConnection) SubscribeInstrumentOrderBook(symbol string, orderBookSize string) {
 	if self.bookChangeChannel == nil {
-		self.bookChangeChannel = make(chan BookChangeInfo, self.chansize)
+		self.bookChangeChannel = make(chan BookChangeInfo, DefaultChannelSize)
 		LogStats("intelimarketclient::book_channel_created")
+	}
+
+	conn := self.getConnection()
+	if conn == nil {
+		return
 	}
 
 	int_size, _ := strconv.ParseInt(orderBookSize, 10, 32)
 
-	intelimarketclient.P9mdi_subscribe_instrument_order_book(self.c_connection, symbol, 1, int32(int_size)) //BOOK_SIDE_BUY
-	intelimarketclient.P9mdi_subscribe_instrument_order_book(self.c_connection, symbol, 2, int32(int_size)) //BOOK_SIDE_SELL
+	intelimarketclient.P9mdi_subscribe_instrument_order_book(conn, symbol, 1, int32(int_size)) //BOOK_SIDE_BUY
+	intelimarketclient.P9mdi_subscribe_instrument_order_book(conn, symbol, 2, int32(int_size)) //BOOK_SIDE_SELL
 }
 
 func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
@@ -398,19 +404,24 @@ func (self *InteliMarketConnection) SubscribeGroupProperties(groupName string) {
 	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
 	// (tudo que começa com __meta__/groups dentro do tio)
 	//
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/properties", strings.ToLower(groupName))
-	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, 0)
+	intelimarketclient.P9mdi_subscribe_group(conn, tioGroupName, 0)
 }
 
 /*
-A função SubscribeGroupTrades assina eventos de trade de um grupo de instrumentos e permite receber 
-eventos passados através do parâmetro position. Esse parâmetro é chamado internamente de snapshotSize 
-e significa a quantidade de eventos que será entregue ao assinante antes dos eventos incrementais 
-(o que seguem após a assinatura ser concluída). Se passado 0 todos os eventos antes dos incrementais serão 
-repassados. Se passado um valor maior que 0 os últimos position eventos antes dos eventos incrementais serão 
+A função SubscribeGroupTrades assina eventos de trade de um grupo de instrumentos e permite receber
+eventos passados através do parâmetro position. Esse parâmetro é chamado internamente de snapshotSize
+e significa a quantidade de eventos que será entregue ao assinante antes dos eventos incrementais
+(o que seguem após a assinatura ser concluída). Se passado 0 todos os eventos antes dos incrementais serão
+repassados. Se passado um valor maior que 0 os últimos position eventos antes dos eventos incrementais serão
 repassados ao assinante.
 
-Note que o parâmetro position para assinatura de grupos se refere aos eventos dos instrumentos 
+Note que o parâmetro position para assinatura de grupos se refere aos eventos dos instrumentos
 individualmente, e não em conjunto. Por exemplo, se for usado um position 100 serão enviados os útimos 100
 eventos para cada instrumento pertencente ao grupo assinado. Caso um instrumento não possua essa quantidade
 de eventos serão enviados menos eventos. Caso um instrumento possua mais eventos que essa quantidade
@@ -421,9 +432,14 @@ func (self *InteliMarketConnection) SubscribeGroupTrades(groupName string, posit
 	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
 	// (tudo que começa com __meta__/groups dentro do tio)
 	//
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
 	int_position, _ := strconv.ParseInt(position, 10, 32)
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/trades", strings.ToLower(groupName))
-	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, -int32(int_position))
+	intelimarketclient.P9mdi_subscribe_group(conn, tioGroupName, -int32(int_position))
 }
 
 func (self *InteliMarketConnection) SubscribeGroupBook(groupName string) {
@@ -431,6 +447,11 @@ func (self *InteliMarketConnection) SubscribeGroupBook(groupName string) {
 	// Eu descobri esse nome olhando os grupos que o umdf_feeder gera pelo TioExplorer
 	// (tudo que começa com __meta__/groups dentro do tio)
 	//
+	conn := self.getConnection()
+	if conn == nil {
+		return
+	}
+
 	tioGroupName := fmt.Sprintf("intelimarket/security_type/%v/book", strings.ToLower(groupName))
-	intelimarketclient.P9mdi_subscribe_group(self.c_connection, tioGroupName, 0)
+	intelimarketclient.P9mdi_subscribe_group(conn, tioGroupName, 0)
 }
